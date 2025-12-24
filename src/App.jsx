@@ -9,7 +9,12 @@ import {
   Activity,
   ShoppingBag,
   Sun,
-  Moon
+  Moon,
+  Lock,
+  Unlock,
+  ArrowRight,
+  Play,
+  Sparkles
 } from 'lucide-react';
 import {
   collection,
@@ -51,7 +56,6 @@ const ACTIONS = [
   "VALIDATE REGEX LOGIC"
 ];
 
-// Generate minimal payload
 const generatePayload = (title) => {
   return JSON.stringify({
     _exec: {
@@ -71,7 +75,6 @@ const generatePayload = (title) => {
   }, null, 2);
 };
 
-// Registry of prompts (150 instruments)
 const FULL_REGISTRY = Array.from({ length: 150 }).map((_, i) => {
   const base = ACTIONS[i % ACTIONS.length];
   return {
@@ -90,9 +93,103 @@ const FULL_REGISTRY = Array.from({ length: 150 }).map((_, i) => {
   };
 });
 
+// --- PRICING TIERS (LOCKED) ---
+const PRICING_TIERS = {
+  precision: {
+    id: 'precision',
+    name: 'Precision',
+    price: 0.99,
+    credits: 1,
+    description: 'Single high-intelligence prompt optimization',
+    tagline: 'Surgical precision for critical moments'
+  },
+  system: {
+    id: 'system',
+    name: 'System',
+    price: 4.99,
+    credits: 1,
+    description: 'Galaxy-scale system-level optimization',
+    tagline: 'Multi-page frameworks, behaviors, architectures',
+    maxLength: 50000
+  },
+  unlimited: {
+    id: 'unlimited',
+    name: 'Unlimited',
+    price: 14.99,
+    period: 'monthly',
+    credits: Infinity,
+    description: 'Unlimited optimizations',
+    tagline: 'The primary offering. Optimize without limits.',
+    featured: true
+  }
+};
+
+// --- ENTITLEMENT MANAGEMENT ---
+const getEntitlements = () => {
+  const stored = localStorage.getItem('ppz_entitlements');
+  return stored ? JSON.parse(stored) : { precision: 0, system: 0, unlimited: false };
+};
+
+const setEntitlements = (entitlements) => {
+  localStorage.setItem('ppz_entitlements', JSON.stringify(entitlements));
+};
+
+const consumeCredit = (tierId) => {
+  const entitlements = getEntitlements();
+  if (tierId === 'unlimited' && entitlements.unlimited) return true;
+  if (entitlements[tierId] > 0) {
+    entitlements[tierId]--;
+    setEntitlements(entitlements);
+    return true;
+  }
+  return false;
+};
+
+const grantEntitlement = (tierId) => {
+  const entitlements = getEntitlements();
+  if (tierId === 'unlimited') {
+    entitlements.unlimited = true;
+  } else {
+    entitlements[tierId] = (entitlements[tierId] || 0) + 1;
+  }
+  setEntitlements(entitlements);
+};
+
+// --- OPTIMIZATION ENGINE ---
+const optimizePrompt = (input, tier) => {
+  const baseOptimization = `You are an expert prompt engineer. Transform the following user input into a high-precision, contextually aware, execution-ready prompt that maximizes clarity, eliminates ambiguity, and enforces exact behavioral control.
+
+USER INPUT:
+${input}
+
+OPTIMIZED PROMPT:
+You must [core action extracted from input]. Your response should be structured, precise, and demonstrate deep understanding of the task. Prioritize logical consistency, eliminate meta-commentary, and focus on direct execution. If context is missing, synthesize intelligent defaults. If the request is vague, clarify intent through exemplars. If conflicts arise, resolve them by prioritizing the most coherent interpretation.
+
+CONSTRAINTS:
+- No conversational filler
+- No meta-narration
+- Execute with surgical precision
+- Adapt intelligence level to context richness`;
+
+  if (tier === 'system') {
+    return baseOptimization + `
+
+SYSTEM-LEVEL ADDENDUM:
+This is a galaxy-scale system optimization. The output may span multiple pages and define:
+- Complete behavioral frameworks
+- Navigational logic
+- Personalization rules
+- Code-generating architectures
+- Foundation systems for PWAs or custom GPTs
+
+The optimization will construct a comprehensive, executable system via prompt.`;
+  }
+
+  return baseOptimization;
+};
+
 // --- COMPONENTS ---
 
-// Seesaw icon component
 const Seesaw = ({ size = 24, className }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <line x1="3" y1="18" x2="21" y2="10" />
@@ -100,7 +197,6 @@ const Seesaw = ({ size = 24, className }) => (
   </svg>
 );
 
-// Glitch text effect
 const GlitchText = memo(({ text, isActive, speed = 40 }) => {
   const elRef = useRef(null);
   const rawText = String(text);
@@ -126,7 +222,6 @@ const GlitchText = memo(({ text, isActive, speed = 40 }) => {
   return <span ref={elRef} className="glitch-wrapper">{rawText}</span>;
 });
 
-// Central status overlay
 const CentralStatus = memo(({ mode, visible }) => {
   return (
     <div className={`central-status ${visible ? 'visible' : ''}`}>
@@ -161,17 +256,14 @@ const CentralStatus = memo(({ mode, visible }) => {
   );
 });
 
-// Prompt wall (infinite scroll illusion)
 const PromptWall = memo(({ onCardClick }) => {
   const rows = useMemo(() => {
-    // Shuffle once on mount
     const shuffled = shuffleArray(FULL_REGISTRY);
 
     return Array.from({ length: 20 }).map((_, r) => {
       const startIdx = (r * 20) % shuffled.length;
       const rowItems = [];
 
-      // Get 40 items for seamless loop (20 visible + 20 for continuation)
       for (let i = 0; i < 40; i++) {
         rowItems.push(shuffled[(startIdx + i) % shuffled.length]);
       }
@@ -210,8 +302,7 @@ const PromptWall = memo(({ onCardClick }) => {
   );
 });
 
-// Library card component
-const LibraryCard = memo(({ item, index, onCopy, onSelect, onToggleLike, onRemove }) => {
+const LibraryCard = memo(({ item, index, onSelect }) => {
   const images = [
     '1550751827-4bd374c3f58b',
     '1451187580459-43490279c0fa',
@@ -222,8 +313,7 @@ const LibraryCard = memo(({ item, index, onCopy, onSelect, onToggleLike, onRemov
   const staggerDelay = useMemo(() => `${(index * 0.73) % 4.5}s`, [index]);
 
   return (
-    <div onClick={() => onSelect(item)} className="library-card">
-      {/* Background image */}
+    <div onClick={() => onSelect(item)} className="library-card album-card">
       <div
         className="card-bg-image"
         style={{
@@ -231,157 +321,176 @@ const LibraryCard = memo(({ item, index, onCopy, onSelect, onToggleLike, onRemov
         }}
       />
 
-      {/* Scanner line */}
       <div className="scanner-line" style={{ animationDelay: staggerDelay }} />
 
-      {/* Four corners - LOCKED LAYOUT */}
-      {/* Top-Left: COPY */}
-      <button
-        onClick={(e) => { e.stopPropagation(); onCopy(item.displayTitle, item.text); }}
-        className="card-action top-left"
-        title="Copy"
-      >
-        <Zap size={20} fill="currentColor" />
-      </button>
-
-      {/* Top-Right: INFO */}
-      <button
-        onClick={(e) => { e.stopPropagation(); onSelect(item); }}
-        className="card-action top-right"
-        title="Details"
-      >
-        <Info size={20} />
-      </button>
-
-      {/* Bottom-Left: DELETE */}
-      <button
-        onClick={(e) => { e.stopPropagation(); onRemove(item); }}
-        className="card-action bottom-left"
-        title="Remove"
-      >
-        <ThumbsDown size={16} />
-      </button>
-
-      {/* Bottom-Right: LIKE (Favorite) */}
-      <button
-        onClick={(e) => { e.stopPropagation(); onToggleLike(item); }}
-        className={`card-action bottom-right ${item.liked ? 'active' : ''}`}
-        title="Like"
-      >
-        <ThumbsUp size={16} fill={item.liked ? "currentColor" : "none"} />
-      </button>
-
-      {/* Card title */}
-      <div className="card-title">
-        <h4>{cleanPayload(item.displayTitle)}</h4>
+      <div className="card-title album-title">
+        <h4>{cleanPayload(item.displayTitle || item.title)}</h4>
+        <span className="album-meta">{item.tier?.toUpperCase() || 'OPTIMIZED'}</span>
       </div>
     </div>
   );
 });
 
-// Prompt detail view
-const PromptDetail = ({ item, onClose, onCopy, onToggleLike, onRemove, isClosing }) => {
-  const [showVerification, setShowVerification] = useState(false);
-
-  if (!item) return null;
+const PricingModal = ({ onClose, onSelectTier, currentInput }) => {
+  const entitlements = getEntitlements();
 
   return (
-    <div className={`prompt-detail ${isClosing ? 'closing' : ''}`}>
-      <div className="detail-container">
-        {/* Left panel - metadata */}
-        <div className="detail-left">
-          <div className="detail-actions">
-            <button onClick={() => onToggleLike(item)} className={`action-btn ${item.liked ? 'active' : ''}`}>
-              <ThumbsUp size={16} fill={item.liked ? "currentColor" : "none"} />
-            </button>
-            <button onClick={() => { onRemove(item); onClose(); }} className="action-btn">
-              <ThumbsDown size={16} />
-            </button>
-          </div>
+    <div className="pricing-modal">
+      <div className="pricing-container">
+        <button onClick={onClose} className="modal-close"><X size={32} /></button>
 
-          <div className="detail-title">
-            <span className="label">Intelligence_Report</span>
-            <h2>{item.displayTitle}</h2>
-          </div>
-
-          <div className="detail-meta">
-            <div className="meta-item">
-              <label>Phase</label>
-              <span>{String(item.usagePhase?.[0] || "General")}</span>
-            </div>
-            <div className="meta-item">
-              <label>Status</label>
-              <span>Locked</span>
-            </div>
-          </div>
-
-          <div className="detail-profile">
-            <label>Context_Profile:</label>
-            <div className="profile-list">
-              <div>• No Context: {String(item.behaviorProfile?.no_context)}</div>
-              <div>• Light Context: {String(item.behaviorProfile?.light_context)}</div>
-              <div>• Rich Context: {String(item.behaviorProfile?.rich_context)}</div>
-            </div>
-          </div>
-
-          <div className="detail-footer">Registry_ARC_17.5 // BY THECORPORATIONCORP</div>
+        <div className="pricing-header">
+          <h2>Choose Your Optimization Level</h2>
+          <p>Unlock intelligence. Transform your prompt.</p>
         </div>
 
-        {/* Right panel - content */}
-        <div className="detail-right">
-          <button onClick={onClose} className="close-btn">
-            <X size={32} />
-          </button>
-
-          <div className="detail-content">
-            {!showVerification ? (
-              <>
-                <div className="copy-button-container">
-                  <button onClick={() => onCopy(item.displayTitle, item.text)} className="main-copy-btn">
-                    <Zap size={36} fill="currentColor" />
-                  </button>
-                  <span className="copy-label">Copy_Instrument</span>
-                </div>
-
-                <div className="detail-quote">
-                  <label>Interview_Insight</label>
-                  <h1>"{item.comment}"</h1>
-                  <div className="audit-status">
-                    <Activity size={12} className="pulse" />
-                    <span>Behavioral Audit Completed</span>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="verification-view">
-                <label>Verification_Framework</label>
-                <div className="verification-content">
-                  <div className="verification-section">
-                    <label>Original_Intent</label>
-                    <p>"{item.originalPrompt}"</p>
-                  </div>
-                  <div className="verification-section payload">
-                    <label>Optimized_Payload (JSON)</label>
-                    <pre>{item.text}</pre>
-                  </div>
-                </div>
+        <div className="pricing-grid">
+          {Object.values(PRICING_TIERS).map(tier => (
+            <div key={tier.id} className={`pricing-card ${tier.featured ? 'featured' : ''}`}>
+              {tier.featured && <div className="featured-badge">PRIMARY</div>}
+              <div className="tier-name">{tier.name}</div>
+              <div className="tier-price">
+                ${tier.price}
+                {tier.period && <span className="tier-period">/{tier.period}</span>}
               </div>
-            )}
+              <div className="tier-tagline">{tier.tagline}</div>
+              <div className="tier-description">{tier.description}</div>
 
-            <button
-              onClick={() => setShowVerification(!showVerification)}
-              className="toggle-verification"
-            >
-              {showVerification ? 'View Insight' : 'View Payload'}
-            </button>
-          </div>
+              {entitlements[tier.id] > 0 && tier.id !== 'unlimited' && (
+                <div className="tier-credits">{entitlements[tier.id]} credit(s) available</div>
+              )}
+              {entitlements.unlimited && tier.id === 'unlimited' && (
+                <div className="tier-active">ACTIVE</div>
+              )}
+
+              <button
+                onClick={() => onSelectTier(tier.id)}
+                className="tier-action"
+                disabled={tier.id === 'system' && currentInput.length > 10000}
+              >
+                {entitlements[tier.id] > 0 || (tier.id === 'unlimited' && entitlements.unlimited)
+                  ? 'Use Credit'
+                  : 'Purchase'}
+              </button>
+            </div>
+          ))}
         </div>
       </div>
     </div>
   );
 };
 
-// --- MAIN APP ---
+const OptimizationResult = ({ result, onClose, onCopy, onUnlock }) => {
+  const [isUnlocked, setIsUnlocked] = useState(false);
+
+  const snippet = result.optimizedPrompt.slice(0, 150) + '...';
+
+  return (
+    <div className="optimization-result">
+      <video
+        autoPlay
+        muted
+        loop
+        playsInline
+        className="result-bg-video"
+        src="https://firebasestorage.googleapis.com/v0/b/prompt-playgroundz.firebasestorage.app/o/Arcade_Prompt_Playgroundz.mp4?alt=media&token=17814a71-e8d6-49dd-9be8-450e6b65f434"
+      />
+
+      <div className="result-overlay" />
+
+      <div className="result-container">
+        <button onClick={onClose} className="result-close"><X size={32} /></button>
+
+        <div className="result-header">
+          <Sparkles size={48} className="result-icon" />
+          <h1>Optimization Complete</h1>
+          <p>Your prompt has been transformed</p>
+        </div>
+
+        <div className="result-content">
+          {isUnlocked ? (
+            <div className="result-full">
+              <pre>{result.optimizedPrompt}</pre>
+              <button onClick={() => onCopy(result.optimizedPrompt)} className="result-copy">
+                <Zap size={20} fill="currentColor" />
+                Copy Optimized Prompt
+              </button>
+            </div>
+          ) : (
+            <div className="result-gated">
+              <div className="result-snippet">{snippet}</div>
+              <div className="result-blur">
+                <div className="blur-content">
+                  {result.optimizedPrompt.slice(150)}
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setIsUnlocked(true);
+                  onUnlock();
+                }}
+                className="result-unlock"
+              >
+                <Unlock size={24} />
+                Unlock Full Result
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="result-meta">
+          <span>Tier: {result.tier.toUpperCase()}</span>
+          <span>•</span>
+          <span>Saved to Library</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const MagazineDetail = ({ item, onClose }) => {
+  if (!item) return null;
+
+  return (
+    <div className="magazine-detail">
+      <div className="magazine-container">
+        <div className="magazine-left">
+          <div className="magazine-cover">
+            <div className="scanner-line" />
+            <h2>{item.displayTitle || item.title}</h2>
+          </div>
+
+          <div className="magazine-meta">
+            <div className="meta-item">
+              <label>Type</label>
+              <span>{item.tier?.toUpperCase() || 'OPTIMIZED'}</span>
+            </div>
+            <div className="meta-item">
+              <label>Created</label>
+              <span>{new Date(item.timestamp || Date.now()).toLocaleDateString()}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="magazine-right">
+          <button onClick={onClose} className="magazine-close"><X size={32} /></button>
+
+          <div className="magazine-content">
+            <h3>Optimized Prompt</h3>
+            <pre className="magazine-code">{item.text || item.optimizedPrompt}</pre>
+
+            {item.originalPrompt && (
+              <>
+                <h3>Original Input</h3>
+                <p className="magazine-original">{item.originalPrompt}</p>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -390,14 +499,10 @@ export default function App() {
   const [statusMode, setStatusMode] = useState('optimizing');
   const [isStatusVisible, setIsStatusVisible] = useState(false);
   const [library, setLibrary] = useState([]);
-  const [selectedPromptId, setSelectedPromptId] = useState(null);
-  const [isHUDClosing, setIsHUDClosing] = useState(false);
+  const [selectedItemId, setSelectedItemId] = useState(null);
   const [firebaseReady, setFirebaseReady] = useState(false);
-
-  // ANIMATION STATE - The magic happens here
   const [injectAnimationActive, setInjectAnimationActive] = useState(false);
 
-  // THEME STATE - Dark (default) or Light (art magazine)
   const [theme, setTheme] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('ppz-theme') || 'dark';
@@ -405,7 +510,11 @@ export default function App() {
     return 'dark';
   });
 
-  // Apply theme to document
+  // PROMPT OPTIMIZATION STATE
+  const [promptInput, setPromptInput] = useState('');
+  const [showPricing, setShowPricing] = useState(false);
+  const [optimizationResult, setOptimizationResult] = useState(null);
+
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('ppz-theme', theme);
@@ -413,7 +522,6 @@ export default function App() {
 
   const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
 
-  // Initialize Firebase
   useEffect(() => {
     let unsubscribe = null;
 
@@ -426,11 +534,8 @@ export default function App() {
       }
 
       setFirebaseReady(true);
-
-      // Setup offline sync
       setupOfflineSync();
 
-      // Auth listener
       if (auth) {
         unsubscribe = onAuthStateChanged(auth, setUser);
       }
@@ -443,13 +548,10 @@ export default function App() {
     };
   }, []);
 
-  // Listen to library updates
   useEffect(() => {
     if (!user || !firebaseReady) return;
 
-    // F9 FIX: Use ES module import instead of require()
     const db = getFirebaseDb();
-
     if (!db) return;
 
     const q = query(collection(db, 'artifacts', 'prompt-playgroundz-v1', 'users', user.uid, 'library'));
@@ -464,166 +566,155 @@ export default function App() {
     return unsubscribe;
   }, [user, firebaseReady]);
 
-  // Handle copy action with PERFECT 0.6s animation
-  const handleCopy = useCallback(async (title, text, mode = 'optimizing') => {
-    if (isTransferring) return;
+  // Load library from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem('ppz_library');
+    if (stored) {
+      const items = JSON.parse(stored);
+      setLibrary(prev => {
+        const merged = [...items, ...prev];
+        const unique = merged.filter((item, index, self) =>
+          index === self.findIndex((t) => t.id === item.id)
+        );
+        return unique;
+      });
+    }
+  }, []);
 
-    const instrument = FULL_REGISTRY.find(p => p.displayTitle === title) || {
-      displayTitle: title || "Custom Query",
-      internalId: "CUSTOM.v1",
-      text,
-      originalPrompt: text,
-      usagePhase: ["start"],
-      behaviorProfile: {
-        no_context: "generic",
-        light_context: "generic",
-        rich_context: "generic"
-      },
-      comment: "A custom user protocol synthesized from direct input."
+  // Persist library to localStorage
+  useEffect(() => {
+    if (library.length > 0) {
+      localStorage.setItem('ppz_library', JSON.stringify(library));
+    }
+  }, [library]);
+
+  const handleOptimize = () => {
+    if (!promptInput.trim()) return;
+    setShowPricing(true);
+  };
+
+  const handlePurchase = (tierId) => {
+    // DEV ONLY: Simulate purchase by granting entitlement
+    // In production, this would integrate with Stripe/payment processor
+    console.log('[DEV] Simulating purchase for tier:', tierId);
+    grantEntitlement(tierId);
+    handleTierSelect(tierId);
+  };
+
+  const handleTierSelect = (tierId) => {
+    const hasCredit = consumeCredit(tierId);
+
+    if (!hasCredit) {
+      // No credit available - trigger purchase flow
+      handlePurchase(tierId);
+      return;
+    }
+
+    // Optimize the prompt
+    const optimizedPrompt = optimizePrompt(promptInput, tierId);
+
+    const result = {
+      id: Date.now().toString(),
+      title: promptInput.slice(0, 50) + '...',
+      displayTitle: promptInput.slice(0, 50) + '...',
+      originalPrompt: promptInput,
+      optimizedPrompt,
+      tier: tierId,
+      timestamp: Date.now(),
+      text: optimizedPrompt
     };
 
-    // === ATOMIC COPY: 0.6s TOTAL ===
+    setOptimizationResult(result);
+    setShowPricing(false);
+  };
+
+  const handleCopyOptimized = async (text) => {
+    const success = await copyToClipboard(text);
+
+    if (success) {
+      setStatusMode('COPIED');
+      setIsStatusVisible(true);
+      setTimeout(() => setIsStatusVisible(false), 600);
+    }
+  };
+
+  const handleUnlockResult = () => {
+    // Save to library
+    if (optimizationResult) {
+      const newItem = { ...optimizationResult };
+      setLibrary(prev => [newItem, ...prev]);
+
+      // Also save to Firestore if user is authenticated
+      if (user && firebaseReady) {
+        const db = getFirebaseDb();
+        if (db) {
+          const collectionPath = `artifacts/prompt-playgroundz-v1/users/${user.uid}/library`;
+          try {
+            if (isOnline()) {
+              addDoc(collection(db, collectionPath), {
+                ...newItem,
+                timestamp: serverTimestamp()
+              });
+            }
+          } catch (error) {
+            console.error('Failed to save to Firestore:', error);
+          }
+        }
+      }
+    }
+  };
+
+  const handleCardClick = (title, text) => {
     setIsTransferring(true);
     setInjectAnimationActive(true);
 
-    // Immediate clipboard copy
-    const success = await copyToClipboard(text);
+    copyToClipboard(text);
 
-    // PHASE 1: Yellow flash (0-250ms)
     setTimeout(() => {
       setStatusMode('injecting');
       setIsStatusVisible(true);
     }, 50);
 
-    // PHASE 2: COPIED confirmation + light burst (250-400ms)
     setTimeout(() => {
       setStatusMode('COPIED');
     }, 250);
 
-    // PHASE 3: Complete + release (600ms total)
     setTimeout(() => {
       setIsStatusVisible(false);
       setInjectAnimationActive(false);
       setIsTransferring(false);
     }, 600);
-
-    // Save to library if successful
-    if (success && user && firebaseReady) {
-      const db = getFirebaseDb();
-
-      if (db) {
-        const collectionPath = `artifacts/prompt-playgroundz-v1/users/${user.uid}/library`;
-
-        try {
-          if (isOnline()) {
-            await addDoc(collection(db, collectionPath), {
-              ...instrument,
-              text,
-              timestamp: serverTimestamp(),
-              liked: false
-            });
-          } else {
-            await queueWrite('add', collectionPath, {
-              ...instrument,
-              text,
-              timestamp: new Date().toISOString(),
-              liked: false
-            });
-          }
-        } catch (error) {
-          console.error('Failed to save to library:', error);
-        }
-      }
-    }
-  }, [user, isTransferring, firebaseReady]);
-
-  // Toggle like
-  const toggleLike = async (item) => {
-    if (!user || !firebaseReady || !item) return;
-
-    const db = getFirebaseDb();
-
-    if (!db) return;
-
-    const docPath = `artifacts/prompt-playgroundz-v1/users/${user.uid}/library`;
-
-    // Optimistic update
-    setLibrary(prev => prev.map(p => p.id === item.id ? { ...p, liked: !p.liked } : p));
-
-    try {
-      if (isOnline()) {
-        await updateDoc(doc(db, docPath, item.id), { liked: !item.liked });
-      } else {
-        await queueWrite('update', docPath, { liked: !item.liked }, item.id);
-      }
-    } catch (err) {
-      // Rollback on error
-      setLibrary(prev => prev.map(p => p.id === item.id ? { ...p, liked: !item.liked } : p));
-      console.error('Failed to toggle like:', err);
-    }
   };
 
-  // Remove prompt
-  const removePrompt = async (item) => {
-    if (!user || !firebaseReady || !item) return;
-
-    const db = getFirebaseDb();
-
-    if (!db) return;
-
-    const docPath = `artifacts/prompt-playgroundz-v1/users/${user.uid}/library`;
-
-    try {
-      if (isOnline()) {
-        await deleteDoc(doc(db, docPath, item.id));
-      } else {
-        await queueWrite('delete', docPath, {}, item.id);
-      }
-    } catch (err) {
-      console.error('Failed to remove prompt:', err);
-    }
-  };
-
-  // Close detail view
-  const handleCloseHUD = useCallback(() => {
-    setIsHUDClosing(true);
-    setTimeout(() => {
-      setSelectedPromptId(null);
-      setIsHUDClosing(false);
-    }, 600);
-  }, []);
-
-  const activePrompt = useMemo(
-    () => library.find(p => p.id === selectedPromptId) || null,
-    [library, selectedPromptId]
+  const activeItem = useMemo(
+    () => library.find(p => p.id === selectedItemId) || null,
+    [library, selectedItemId]
   );
 
   return (
     <div className="app">
-      {/* Navigation */}
+      {/* Navigation - Light/Dark toggle moved to top-right */}
       <nav className="app-nav">
         <div className="nav-brand">
           <div className="nav-entity">ENTITY // THECORPORATIONCORP</div>
         </div>
-        <div className="nav-controls">
-          <button
-            onClick={toggleTheme}
-            className="theme-toggle"
-            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-          >
-            {theme === 'dark' ? <Sun size={18} strokeWidth={2} /> : <Moon size={18} strokeWidth={2} />}
-          </button>
-        </div>
         <div className="nav-info">
           SYS_VOL.02 // {String(user?.uid || "").slice(0, 6)}
         </div>
+        <button
+          onClick={toggleTheme}
+          className="theme-toggle-flat"
+          title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+        >
+          {theme === 'dark' ? <Sun size={16} strokeWidth={2} /> : <Moon size={16} strokeWidth={2} />}
+        </button>
       </nav>
 
       {/* Main content */}
       <main className="app-main">
         {view === 'wall' && (
           <div className={`wall-view ${injectAnimationActive ? 'inject-active' : ''}`}>
-            <PromptWall onCardClick={(title, text) => handleCopy(title, text)} />
+            <PromptWall onCardClick={handleCardClick} />
             <div className="wall-overlay">
               <h1 className={`app-title ${injectAnimationActive ? 'scrambling' : ''}`}>
                 {injectAnimationActive ? (
@@ -636,45 +727,102 @@ export default function App() {
                   </>
                 )}
               </h1>
+
+              {/* PROMPT OPTIMIZATION INPUT - PRIMARY FUNCTION */}
+              <div className="optimize-input-container">
+                <textarea
+                  value={promptInput}
+                  onChange={(e) => setPromptInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                      handleOptimize();
+                    }
+                  }}
+                  placeholder="Paste your prompt to optimize..."
+                  className="optimize-input"
+                  rows={4}
+                />
+                <button
+                  onClick={handleOptimize}
+                  className="optimize-button"
+                  disabled={!promptInput.trim()}
+                >
+                  <Sparkles size={20} />
+                  Optimize Prompt
+                  <ArrowRight size={20} />
+                </button>
+              </div>
             </div>
           </div>
         )}
 
         {view === 'drops' && (
-          <div className="drops-view">
-            <div className="drops-header">
-              <h3>Drops</h3>
+          <div className="drops-view magazine-drops">
+            <div className="drops-editorial-header">
+              <video
+                autoPlay
+                muted
+                loop
+                playsInline
+                className="drops-bg-video"
+                src="https://firebasestorage.googleapis.com/v0/b/prompt-playgroundz.firebasestorage.app/o/Arcade_Prompt_Playgroundz.mp4?alt=media&token=17814a71-e8d6-49dd-9be8-450e6b65f434"
+              />
+              <div className="drops-header-content">
+                <h1>Drops</h1>
+                <p>Magazine · Media · Commerce</p>
+              </div>
             </div>
 
-            <div className="drops-content">
-              <div className="drops-grid">
-                <div className="drop-card featured">
-                  <div className="drop-badge">Featured</div>
-                  <div className="drop-title">Premium Prompt Pack</div>
-                  <div className="drop-description">50 industry-grade prompts for advanced workflows</div>
-                  <div className="drop-price">$14.99</div>
-                  <button className="drop-action">Get Access</button>
+            <div className="drops-magazine-content">
+              <div className="editorial-section">
+                <div className="editorial-label">FEATURED EDITORIAL</div>
+                <h2>The State of AI Prompting in 2025</h2>
+                <p>A personal viewpoint on intelligence, precision, and the craft of prompt engineering.</p>
+                <button className="editorial-action">
+                  <Play size={16} />
+                  Read Article
+                </button>
+              </div>
+
+              <div className="curated-prompts-section">
+                <div className="section-header">
+                  <h3>My Personal Collection</h3>
+                  <span>Curated system-level prompts</span>
                 </div>
 
-                <div className="drop-card">
-                  <div className="drop-title">Developer Suite</div>
-                  <div className="drop-description">Code optimization & debugging instruments</div>
-                  <div className="drop-price">$4.99</div>
-                  <button className="drop-action">Purchase</button>
-                </div>
+                <div className="curated-grid">
+                  <div className="curated-card">
+                    <div className="curated-title">Complete PWA Foundation System</div>
+                    <div className="curated-description">Multi-page architectural framework for building production-ready Progressive Web Apps</div>
+                    <div className="curated-price">$24.99</div>
+                    <button className="curated-action">Purchase</button>
+                  </div>
 
-                <div className="drop-card">
-                  <div className="drop-title">Content Creator Pack</div>
-                  <div className="drop-description">Copywriting & content generation tools</div>
-                  <div className="drop-price">$4.99</div>
-                  <button className="drop-action">Purchase</button>
-                </div>
+                  <div className="curated-card">
+                    <div className="curated-title">Custom GPT Behavior Engine</div>
+                    <div className="curated-description">Comprehensive system for defining GPT personalities, constraints, and execution logic</div>
+                    <div className="curated-price">$19.99</div>
+                    <button className="curated-action">Purchase</button>
+                  </div>
 
-                <div className="drop-card">
-                  <div className="drop-title">Data Analysis Bundle</div>
-                  <div className="drop-description">Extract insights from complex datasets</div>
-                  <div className="drop-price">$2.99</div>
-                  <button className="drop-action">Purchase</button>
+                  <div className="curated-card featured">
+                    <div className="featured-badge">WEEKLY DROP</div>
+                    <div className="curated-title">The Intelligence Framework</div>
+                    <div className="curated-description">My personal meta-system for prompt optimization across all domains</div>
+                    <div className="curated-price">$49.99</div>
+                    <button className="curated-action">Get Now</button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="newsletter-section">
+                <div className="newsletter-content">
+                  <h3>Subscribe to Weekly Insights</h3>
+                  <p>Prompt engineering, AI developments, and exclusive drops delivered every Monday.</p>
+                  <div className="newsletter-form">
+                    <input type="email" placeholder="Enter your email" />
+                    <button>Subscribe</button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -691,19 +839,16 @@ export default function App() {
               {library.length === 0 ? (
                 <div className="library-empty">
                   <LibraryIcon size={64} strokeWidth={1} />
-                  <p>Copy a prompt to start your library</p>
+                  <p>Optimize a prompt to start your library</p>
                 </div>
               ) : (
-                <div className="library-grid">
+                <div className="library-grid album-grid">
                   {library.map((item, idx) => (
                     <LibraryCard
                       key={item.id}
                       item={item}
                       index={idx}
-                      onCopy={handleCopy}
-                      onSelect={(p) => setSelectedPromptId(p.id)}
-                      onToggleLike={toggleLike}
-                      onRemove={removePrompt}
+                      onSelect={(p) => setSelectedItemId(p.id)}
                     />
                   ))}
                 </div>
@@ -730,14 +875,32 @@ export default function App() {
       </div>
 
       {/* Modals */}
-      <PromptDetail
-        item={activePrompt}
-        isClosing={isHUDClosing}
-        onClose={handleCloseHUD}
-        onCopy={handleCopy}
-        onToggleLike={toggleLike}
-        onRemove={removePrompt}
-      />
+      {showPricing && (
+        <PricingModal
+          onClose={() => setShowPricing(false)}
+          onSelectTier={handleTierSelect}
+          currentInput={promptInput}
+        />
+      )}
+
+      {optimizationResult && (
+        <OptimizationResult
+          result={optimizationResult}
+          onClose={() => {
+            setOptimizationResult(null);
+            setPromptInput('');
+          }}
+          onCopy={handleCopyOptimized}
+          onUnlock={handleUnlockResult}
+        />
+      )}
+
+      {activeItem && (
+        <MagazineDetail
+          item={activeItem}
+          onClose={() => setSelectedItemId(null)}
+        />
+      )}
 
       <CentralStatus mode={statusMode} visible={isStatusVisible} />
     </div>
