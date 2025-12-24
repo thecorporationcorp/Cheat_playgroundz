@@ -81,8 +81,11 @@ export async function initializeFirebase() {
       firebaseDb = getFirestore(firebaseApp);
 
       try {
-        await enableIndexedDbPersistence(firebaseDb);
-        console.log('✅ Firebase offline persistence enabled');
+        // F7 FIX: Enable multi-tab synchronization
+        await enableIndexedDbPersistence(firebaseDb, {
+          synchronizeTabs: true
+        });
+        console.log('✅ Firebase offline persistence enabled (multi-tab)');
       } catch (persistenceError) {
         if (persistenceError.code === 'failed-precondition') {
           console.warn('⚠️ Multiple tabs open, persistence only enabled in one tab');

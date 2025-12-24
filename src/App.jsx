@@ -19,7 +19,7 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
-import { initializeFirebase } from './firebase';
+import { initializeFirebase, getFirebaseDb } from './firebase';
 import { queueWrite, setupOfflineSync } from './offlineQueue';
 import { copyToClipboard, cleanPayload, isOnline, shuffleArray } from './utils';
 import './App.css';
@@ -425,7 +425,7 @@ export default function App() {
   useEffect(() => {
     if (!user || !firebaseReady) return;
 
-    const { getFirebaseDb } = require('./firebase');
+    // F9 FIX: Use ES module import instead of require()
     const db = getFirebaseDb();
 
     if (!db) return;
@@ -476,7 +476,6 @@ export default function App() {
 
     // Save to library if successful
     if (success && user && firebaseReady) {
-      const { getFirebaseDb } = require('./firebase');
       const db = getFirebaseDb();
 
       if (db) {
@@ -509,7 +508,6 @@ export default function App() {
   const toggleLike = async (item) => {
     if (!user || !firebaseReady || !item) return;
 
-    const { getFirebaseDb } = require('./firebase');
     const db = getFirebaseDb();
 
     if (!db) return;
@@ -536,7 +534,6 @@ export default function App() {
   const removePrompt = async (item) => {
     if (!user || !firebaseReady || !item) return;
 
-    const { getFirebaseDb } = require('./firebase');
     const db = getFirebaseDb();
 
     if (!db) return;

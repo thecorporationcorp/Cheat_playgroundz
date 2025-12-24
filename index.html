@@ -25,9 +25,10 @@
 
   <title>Prompt Playgroundz</title>
 
-  <!-- Firebase Config (injected at build time) -->
-  <script>
-    window.__firebase_config = '%VITE_FIREBASE_CONFIG%';
+  <!-- Firebase Config (works in both dev and build) -->
+  <script type="module">
+    // F3 FIX: Use import.meta.env for dev mode compatibility
+    window.__firebase_config = import.meta.env.VITE_FIREBASE_CONFIG || '{}';
     window.__app_id = 'prompt-playgroundz-v1';
   </script>
 </head>
