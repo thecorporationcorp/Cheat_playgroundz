@@ -624,6 +624,27 @@ export default function App() {
       text: optimizedPrompt
     };
 
+    // AUTOMATICALLY save to library (Directive 1, 2, 6)
+    setLibrary(prev => [result, ...prev]);
+
+    // Also save to Firestore if authenticated
+    if (user && firebaseReady) {
+      const db = getFirebaseDb();
+      if (db) {
+        const collectionPath = `artifacts/prompt-playgroundz-v1/users/${user.uid}/library`;
+        try {
+          if (isOnline()) {
+            addDoc(collection(db, collectionPath), {
+              ...result,
+              timestamp: serverTimestamp()
+            });
+          }
+        } catch (error) {
+          console.error('Failed to save to Firestore:', error);
+        }
+      }
+    }
+
     setOptimizationResult(result);
     setShowPricing(false);
   };
@@ -639,29 +660,8 @@ export default function App() {
   };
 
   const handleUnlockResult = () => {
-    // Save to library
-    if (optimizationResult) {
-      const newItem = { ...optimizationResult };
-      setLibrary(prev => [newItem, ...prev]);
-
-      // Also save to Firestore if user is authenticated
-      if (user && firebaseReady) {
-        const db = getFirebaseDb();
-        if (db) {
-          const collectionPath = `artifacts/prompt-playgroundz-v1/users/${user.uid}/library`;
-          try {
-            if (isOnline()) {
-              addDoc(collection(db, collectionPath), {
-                ...newItem,
-                timestamp: serverTimestamp()
-              });
-            }
-          } catch (error) {
-            console.error('Failed to save to Firestore:', error);
-          }
-        }
-      }
-    }
+    // Result already saved to library automatically in handleTierSelect
+    // This function is now only for unlocking the view
   };
 
   const handleCardClick = (title, text) => {
@@ -684,6 +684,47 @@ export default function App() {
       setInjectAnimationActive(false);
       setIsTransferring(false);
     }, 600);
+
+    // IMMEDIATELY save to library when copied (Directive 6)
+    const item = FULL_REGISTRY.find(p => p.displayTitle === title);
+    if (item) {
+      const libraryItem = {
+        id: `wall-${Date.now()}`,
+        displayTitle: item.displayTitle,
+        title: item.displayTitle,
+        text: text,
+        originalPrompt: item.originalPrompt,
+        tier: 'wall',
+        timestamp: Date.now(),
+        behaviorProfile: item.behaviorProfile,
+        comment: item.comment
+      };
+
+      setLibrary(prev => {
+        // Avoid duplicates
+        const exists = prev.some(p => p.displayTitle === item.displayTitle);
+        if (exists) return prev;
+        return [libraryItem, ...prev];
+      });
+
+      // Also save to Firestore if authenticated
+      if (user && firebaseReady) {
+        const db = getFirebaseDb();
+        if (db) {
+          const collectionPath = `artifacts/prompt-playgroundz-v1/users/${user.uid}/library`;
+          try {
+            if (isOnline()) {
+              addDoc(collection(db, collectionPath), {
+                ...libraryItem,
+                timestamp: serverTimestamp()
+              });
+            }
+          } catch (error) {
+            console.error('Failed to save to Firestore:', error);
+          }
+        }
+      }
+    }
   };
 
   const activeItem = useMemo(
