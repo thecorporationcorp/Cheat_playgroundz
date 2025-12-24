@@ -391,6 +391,25 @@ export default function App() {
   const [isHUDClosing, setIsHUDClosing] = useState(false);
   const [firebaseReady, setFirebaseReady] = useState(false);
 
+  // ANIMATION STATE - The magic happens here
+  const [injectAnimationActive, setInjectAnimationActive] = useState(false);
+
+  // THEME STATE - Dark (default) or Light (art magazine)
+  const [theme, setTheme] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('ppz-theme') || 'dark';
+    }
+    return 'dark';
+  });
+
+  // Apply theme to document
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('ppz-theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+
   // Initialize Firebase
   useEffect(() => {
     let unsubscribe = null;
@@ -442,7 +461,7 @@ export default function App() {
     return unsubscribe;
   }, [user, firebaseReady]);
 
-  // Handle copy action
+  // Handle copy action with PERFECT 0.8s animation
   const handleCopy = useCallback(async (title, text, mode = 'optimizing') => {
     if (isTransferring) return;
 
@@ -460,19 +479,30 @@ export default function App() {
       comment: "A custom user protocol synthesized from direct input."
     };
 
-    setStatusMode(mode);
-    setIsStatusVisible(true);
+    // === PERFECT 0.8s ANIMATION SEQUENCE ===
     setIsTransferring(true);
+    setInjectAnimationActive(true); // FREEZE + YELLOW + SCRAMBLE
 
+    // Copy to clipboard immediately
     const success = await copyToClipboard(text);
 
+    // Phase 1: CHAOS (0-400ms) - Yellow flash, scramble
+    setTimeout(() => {
+      setStatusMode('injecting');
+      setIsStatusVisible(true);
+    }, 100);
+
+    // Phase 2: RESOLVE (400-600ms) - Snap to PROMPT PLAYGROUNDZ
     setTimeout(() => {
       setStatusMode('copied');
-      setTimeout(() => {
-        setIsStatusVisible(false);
-        setIsTransferring(false);
-      }, 800);
-    }, 900);
+    }, 400);
+
+    // Phase 3: RELEASE (600-800ms) - Everything returns to normal
+    setTimeout(() => {
+      setIsStatusVisible(false);
+      setInjectAnimationActive(false);
+      setIsTransferring(false);
+    }, 800);
 
     // Save to library if successful
     if (success && user && firebaseReady) {
@@ -572,6 +602,15 @@ export default function App() {
         <div className="nav-brand">
           <div className="nav-entity">ENTITY // THECORPORATIONCORP</div>
         </div>
+        <div className="nav-controls">
+          <button
+            onClick={toggleTheme}
+            className="theme-toggle"
+            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          >
+            {theme === 'dark' ? '☀️' : '🌙'}
+          </button>
+        </div>
         <div className="nav-info">
           SYS_VOL.02 // {String(user?.uid || "").slice(0, 6)}
         </div>
@@ -580,13 +619,19 @@ export default function App() {
       {/* Main content */}
       <main className="app-main">
         {view === 'wall' && (
-          <div className="wall-view">
+          <div className={`wall-view ${injectAnimationActive ? 'inject-active' : ''}`}>
             <PromptWall onCardClick={(title, text) => handleCopy(title, text)} />
             <div className="wall-overlay">
-              <h1 className="app-title">
-                PROMPT
-                <br />
-                PLAYGROUNDZ
+              <h1 className={`app-title ${injectAnimationActive ? 'scrambling' : ''}`}>
+                {injectAnimationActive ? (
+                  <GlitchText text="PROMPT PLAYGROUNDZ" isActive={true} speed={30} />
+                ) : (
+                  <>
+                    PROMPT
+                    <br />
+                    PLAYGROUNDZ
+                  </>
+                )}
               </h1>
             </div>
           </div>

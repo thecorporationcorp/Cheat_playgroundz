@@ -1,0 +1,90 @@
+{
+  "app": {
+    "name": "Prompt Playgroundz",
+    "version": "1.0.0",
+    "theme": "dark-electric-punk"
+  },
+  "wall": {
+    "enabled": true,
+    "scrollSpeed": "medium",
+    "featuredPrompts": [
+      "REWRITE FOR READABILITY",
+      "GENERATE UNIT TESTS",
+      "ANALYZE TEXT SENTIMENT"
+    ],
+    "customMessages": {
+      "enabled": true,
+      "messages": [
+        "✨ Try a free prompt - see the difference",
+        "🎯 Precision prompts = better results",
+        "⚡ Optimize your workflow"
+      ],
+      "displayInterval": 8000
+    }
+  },
+  "optimizer": {
+    "enabled": true,
+    "tiers": {
+      "free": {
+        "enabled": true,
+        "features": ["basic_cleanup", "structure"]
+      },
+      "tier1": {
+        "price": 0.99,
+        "features": ["refined_clarity", "context_awareness"]
+      },
+      "tier2": {
+        "price": 2.99,
+        "features": ["structured_logic", "behavioral_control"]
+      },
+      "tier3": {
+        "price": 4.99,
+        "features": ["full_system_prompt", "custom_scenarios"]
+      },
+      "subscription": {
+        "price": 14.99,
+        "period": "monthly",
+        "features": ["unlimited", "priority_support", "custom_models"]
+      }
+    },
+    "fallbackBehavior": {
+      "nonsenseInput": "educate",
+      "emptyInput": "prompt",
+      "tooLong": "summarize"
+    }
+  },
+  "library": {
+    "musicPlayer": {
+      "enabled": false,
+      "comment": "Music player integration - coming in v2"
+    },
+    "displayModes": ["grid", "list"],
+    "defaultView": "grid"
+  },
+  "promo": {
+    "enabled": true,
+    "codes": {
+      "LAUNCH2024": {
+        "discount": 50,
+        "type": "percent",
+        "expiresAt": "2025-12-31",
+        "maxUses": 100
+      },
+      "FRIEND": {
+        "discount": 100,
+        "type": "percent",
+        "expiresAt": null,
+        "maxUses": null,
+        "comment": "Free pass for friends/family"
+      }
+    }
+  },
+  "admin": {
+    "email": "admin@promptplaygroundz.com",
+    "features": {
+      "dashboard": true,
+      "analytics": true,
+      "userManagement": true
+    }
+  }
+}
