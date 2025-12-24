@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Firestore Test</title>
+  <script type="module">
+    window.__firebase_config = import.meta.env.VITE_FIREBASE_CONFIG || '{}';
+  </script>
+</head>
+<body>
+  <h1>Firestore Test</h1>
+  <div id="status">Testing...</div>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+    import { getFirestore, collection, addDoc, getDocs, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+    const status = document.getElementById('status');
+
+    try {
+      // Init
+      const config = JSON.parse(window.__firebase_config);
+      const app = initializeApp(config);
+      const db = getFirestore(app);
+
+      // Write
+      const docRef = await addDoc(collection(db, 'test'), {
+        message: 'Hello from Prompt Playgroundz',
+        timestamp: serverTimestamp()
+      });
+
+      // Read
+      const snapshot = await getDocs(collection(db, 'test'));
+      const docs = snapshot.docs.map(d => d.data());
+
+      status.innerHTML = `✅ SUCCESS<br>Wrote: ${docRef.id}<br>Read: ${docs.length} docs<br><pre>${JSON.stringify(docs[0], null, 2)}</pre>`;
+    } catch (e) {
+      status.innerHTML = `❌ FAILED<br>${e.message}`;
+    }
+  </script>
+</body>
+</html>
