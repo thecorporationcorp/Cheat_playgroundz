@@ -6,7 +6,10 @@ import {
   ThumbsDown,
   Info,
   Library as LibraryIcon,
-  Activity
+  Activity,
+  ShoppingBag,
+  Sun,
+  Moon
 } from 'lucide-react';
 import {
   collection,
@@ -461,7 +464,7 @@ export default function App() {
     return unsubscribe;
   }, [user, firebaseReady]);
 
-  // Handle copy action with PERFECT 0.8s animation
+  // Handle copy action with PERFECT 0.6s animation
   const handleCopy = useCallback(async (title, text, mode = 'optimizing') => {
     if (isTransferring) return;
 
@@ -479,30 +482,30 @@ export default function App() {
       comment: "A custom user protocol synthesized from direct input."
     };
 
-    // === PERFECT 0.8s ANIMATION SEQUENCE ===
+    // === ATOMIC COPY: 0.6s TOTAL ===
     setIsTransferring(true);
-    setInjectAnimationActive(true); // FREEZE + YELLOW + SCRAMBLE
+    setInjectAnimationActive(true);
 
-    // Copy to clipboard immediately
+    // Immediate clipboard copy
     const success = await copyToClipboard(text);
 
-    // Phase 1: CHAOS (0-400ms) - Yellow flash, scramble
+    // PHASE 1: Yellow flash (0-250ms)
     setTimeout(() => {
       setStatusMode('injecting');
       setIsStatusVisible(true);
-    }, 100);
+    }, 50);
 
-    // Phase 2: RESOLVE (400-600ms) - Snap to PROMPT PLAYGROUNDZ
+    // PHASE 2: COPIED confirmation + light burst (250-400ms)
     setTimeout(() => {
-      setStatusMode('copied');
-    }, 400);
+      setStatusMode('COPIED');
+    }, 250);
 
-    // Phase 3: RELEASE (600-800ms) - Everything returns to normal
+    // PHASE 3: Complete + release (600ms total)
     setTimeout(() => {
       setIsStatusVisible(false);
       setInjectAnimationActive(false);
       setIsTransferring(false);
-    }, 800);
+    }, 600);
 
     // Save to library if successful
     if (success && user && firebaseReady) {
@@ -608,7 +611,7 @@ export default function App() {
             className="theme-toggle"
             title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
           >
-            {theme === 'dark' ? '☀️' : '🌙'}
+            {theme === 'dark' ? <Sun size={18} strokeWidth={2} /> : <Moon size={18} strokeWidth={2} />}
           </button>
         </div>
         <div className="nav-info">
@@ -633,6 +636,47 @@ export default function App() {
                   </>
                 )}
               </h1>
+            </div>
+          </div>
+        )}
+
+        {view === 'drops' && (
+          <div className="drops-view">
+            <div className="drops-header">
+              <h3>Drops</h3>
+            </div>
+
+            <div className="drops-content">
+              <div className="drops-grid">
+                <div className="drop-card featured">
+                  <div className="drop-badge">Featured</div>
+                  <div className="drop-title">Premium Prompt Pack</div>
+                  <div className="drop-description">50 industry-grade prompts for advanced workflows</div>
+                  <div className="drop-price">$14.99</div>
+                  <button className="drop-action">Get Access</button>
+                </div>
+
+                <div className="drop-card">
+                  <div className="drop-title">Developer Suite</div>
+                  <div className="drop-description">Code optimization & debugging instruments</div>
+                  <div className="drop-price">$4.99</div>
+                  <button className="drop-action">Purchase</button>
+                </div>
+
+                <div className="drop-card">
+                  <div className="drop-title">Content Creator Pack</div>
+                  <div className="drop-description">Copywriting & content generation tools</div>
+                  <div className="drop-price">$4.99</div>
+                  <button className="drop-action">Purchase</button>
+                </div>
+
+                <div className="drop-card">
+                  <div className="drop-title">Data Analysis Bundle</div>
+                  <div className="drop-description">Extract insights from complex datasets</div>
+                  <div className="drop-price">$2.99</div>
+                  <button className="drop-action">Purchase</button>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -673,7 +717,11 @@ export default function App() {
       <div className="app-footer">
         <button onClick={() => setView('wall')} className={view === 'wall' ? 'active' : ''}>
           <Seesaw size={24} />
-          <span>PLAYGROUND</span>
+          <span>PLAYGROUNDS</span>
+        </button>
+        <button onClick={() => setView('drops')} className={view === 'drops' ? 'active' : ''}>
+          <ShoppingBag size={24} />
+          <span>DROPS</span>
         </button>
         <button onClick={() => setView('library')} className={view === 'library' ? 'active' : ''}>
           <LibraryIcon size={24} />
