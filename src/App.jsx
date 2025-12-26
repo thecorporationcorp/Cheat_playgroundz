@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useMemo, memo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, memo, useCallback } from 'react';
 import {
   Zap, X, ArrowRight, ShoppingBag, Library as LibraryIcon,
-  Play, Star, Heart, ThumbsUp, ThumbsDown, LayoutGrid,
-  List as ListIcon, Activity, PlusSquare, Sparkles, Unlock
+  ThumbsUp, ThumbsDown, Activity, Sparkles, Unlock
 } from 'lucide-react';
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import {
@@ -10,6 +9,17 @@ import {
   updateDoc, deleteDoc, doc, serverTimestamp
 } from 'firebase/firestore';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+import './App.css';
+
+// --- UTILITY: Shuffle array ---
+const shuffleArray = (array) => {
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+};
 
 // --- FIREBASE INITIALIZATION ---
 const firebaseConfig = {
@@ -24,7 +34,6 @@ const firebaseConfig = {
 const fbApp = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const fbAuth = getAuth(fbApp);
 const fbDb = getFirestore(fbApp);
-const appId = 'prompt-playgroundz-v1';
 
 // --- PRICING TIERS ---
 const PRICING_TIERS = {
@@ -121,7 +130,59 @@ The optimization will construct a comprehensive, executable system via prompt.`;
   return baseOptimization;
 };
 
-// --- MASTER DATA (Official Wording) ---
+// --- PROMPT REGISTRY ---
+const ACTIONS = [
+  "REWRITE FOR READABILITY",
+  "DEBUG PYTHON SCRIPTS",
+  "EXTRACT CORE DATA",
+  "SIMPLIFY TECHNICAL JARGON",
+  "SUMMARIZE SYSTEM LOGS",
+  "GENERATE UNIT TESTS",
+  "FIX JAVASCRIPT LOGIC",
+  "OPTIMIZE DATABASE QUERIES",
+  "CONVERT TO MARKDOWN",
+  "ANALYZE TEXT SENTIMENT",
+  "BRAINSTORM MODULE NAMES",
+  "DRAFT SEO METADATA",
+  "EXPLAIN TECHNICAL CONCEPTS",
+  "CREATE CODE OUTLINE",
+  "POLISH SYNTAX ERRORS",
+  "REFACTOR REACT STATE",
+  "BUILD JSON TABLES",
+  "TRANSLATE TO TARGET",
+  "CREATE USER STORIES",
+  "VALIDATE REGEX LOGIC"
+];
+
+const generatePayload = (title) => {
+  return JSON.stringify({
+    _exec: {
+      dominance: "high",
+      instruction: String(title).toUpperCase()
+    },
+    scenarios: {
+      explicit: "Execute with precision",
+      vague: "Synthesize intent",
+      empty: "Demonstrate intelligence",
+      conflict: "Prioritize consistency"
+    },
+    defaults: {
+      mode: "advanced",
+      exemplar: "Logic determines outcome"
+    }
+  }, null, 2);
+};
+
+const FULL_REGISTRY = Array.from({ length: 150 }).map((_, i) => {
+  const base = ACTIONS[i % ACTIONS.length];
+  return {
+    displayTitle: base,
+    text: generatePayload(base),
+    originalPrompt: `Execute ${base.toLowerCase()}.`
+  };
+});
+
+// --- MASTER DATA (DROPZ Editorial - FINAL MASTER COPY) ---
 const ISSUE_DATA = {
   title: "DROPZ",
   issue: "Issue 001 — Prompt Playgroundz",
@@ -149,7 +210,7 @@ const ISSUE_DATA = {
   ]
 };
 
-// --- RESPONSIVE EDITORIAL ENGINE ---
+// --- RESPONSIVE EDITORIAL ENGINE (DROPZ) ---
 const EditorialEngine = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
 
@@ -160,7 +221,6 @@ const EditorialEngine = () => {
   }, []);
 
   if (isMobile) {
-    // MOBILE "SPREAD" VIEW
     return (
       <div className="bg-[#fcfaf5] text-[#1a1a1a] min-h-screen font-['Libre_Baskerville'] pb-32">
         <section className="p-8 border-b-2 border-black">
@@ -177,7 +237,6 @@ const EditorialEngine = () => {
     );
   }
 
-  // DESKTOP "SCROLL" VIEW
   return (
     <div className="bg-[#fcfaf5] text-[#111] min-h-screen font-['Libre_Baskerville'] selection:bg-[#d94a1e] selection:text-white pb-32">
       <section className="page cover flex flex-col p-24 border-b-2 border-black">
@@ -343,6 +402,44 @@ const LibraryCard = ({ item, onSelect }) => {
   );
 };
 
+// --- PROMPT WALL (ALWAYS MOUNTED, ALWAYS ANIMATING) ---
+const PromptWall = memo(({ onCardClick }) => {
+  const rows = useMemo(() => {
+    const shuffled = shuffleArray(FULL_REGISTRY);
+    return Array.from({ length: 20 }).map((_, r) => {
+      const startIdx = (r * 20) % shuffled.length;
+      const rowItems = [];
+      for (let i = 0; i < 40; i++) {
+        rowItems.push(shuffled[(startIdx + i) % shuffled.length]);
+      }
+      const duration = 120 + Math.random() * 100;
+      const delay = -(Math.random() * duration);
+      return { id: r, items: rowItems, duration, delay };
+    });
+  }, []);
+
+  return (
+    <div className="wall-container">
+      {rows.map(row => (
+        <div key={row.id} className="wall-row">
+          <div className="wall-track" style={{
+            animationDuration: `${row.duration}s`,
+            animationDelay: `${row.delay}s`
+          }}>
+            {row.items.map((item, idx) => (
+              <div key={`${row.id}-${idx}`} className="wall-card"
+                onClick={() => onCardClick(item.displayTitle, item.text)}>
+                {item.displayTitle}
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+});
+
+// --- MAIN APP ---
 export default function App() {
   const [view, setView] = useState('playground');
   const [user, setUser] = useState(null);
@@ -356,7 +453,6 @@ export default function App() {
     return onAuthStateChanged(fbAuth, setUser);
   }, []);
 
-  // Load library from localStorage
   useEffect(() => {
     const stored = localStorage.getItem('ppz_library');
     if (stored) {
@@ -364,7 +460,6 @@ export default function App() {
     }
   }, []);
 
-  // Persist library
   useEffect(() => {
     if (library.length > 0) {
       localStorage.setItem('ppz_library', JSON.stringify(library));
@@ -403,9 +498,7 @@ export default function App() {
       text: optimizedPrompt
     };
 
-    // AUTOMATICALLY save to library
     setLibrary(prev => [result, ...prev]);
-
     setOptimizationResult(result);
     setShowPricing(false);
   };
@@ -418,75 +511,97 @@ export default function App() {
     }
   };
 
+  const handleWallCardClick = (displayTitle, text) => {
+    // Auto-save to library when wall card is clicked
+    const result = {
+      id: Date.now().toString(),
+      title: displayTitle,
+      displayTitle,
+      originalPrompt: displayTitle,
+      optimizedPrompt: text,
+      tier: 'wall',
+      timestamp: Date.now(),
+      text
+    };
+    setLibrary(prev => [result, ...prev]);
+  };
+
   return (
     <div className="relative w-full h-screen overflow-hidden bg-[#080808] text-white">
-      <main className="relative w-full h-full overflow-y-auto custom-scrollbar">
-        {view === 'playground' && (
-          <div className="h-full flex flex-col items-center justify-center p-6">
-            <h1 className="anton-lock text-7xl md:text-9xl text-white mb-12 tracking-tight">
-              PROMPT
-              <br />
-              PLAYGROUNDZ
-            </h1>
+      {/* WALL - ALWAYS MOUNTED, ALWAYS ANIMATING */}
+      <PromptWall onCardClick={handleWallCardClick} />
 
-            {/* SIMPLE GOOGLE-LIKE SEARCH BAR */}
-            <div className="w-full max-w-2xl">
-              <div className="relative">
-                <input
-                  type="text"
-                  value={promptInput}
-                  onChange={(e) => setPromptInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleOptimize();
-                  }}
-                  placeholder="Enter your prompt..."
-                  className="w-full bg-white/5 border border-white/10 rounded-full px-6 py-4 text-white placeholder-white/30 focus:outline-none focus:border-white/40 transition-all"
-                />
-                <button
-                  onClick={handleOptimize}
-                  disabled={!promptInput.trim()}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#e0b300] text-black px-6 py-2 rounded-full font-bold uppercase text-sm hover:bg-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  Optimize
-                </button>
+      {/* PLAYGROUND OVERLAY */}
+      {view === 'playground' && (
+        <div className="fixed inset-0 z-[100] bg-transparent flex flex-col items-center justify-center p-6 pointer-events-none">
+          <h1 className="anton-lock text-7xl md:text-9xl text-white mb-12 tracking-tight pointer-events-none">
+            PROMPT
+            <br />
+            PLAYGROUNDZ
+          </h1>
+
+          <div className="w-full max-w-2xl pointer-events-auto">
+            <div className="relative">
+              <input
+                type="text"
+                value={promptInput}
+                onChange={(e) => setPromptInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleOptimize();
+                }}
+                placeholder="Enter the prompt you'd like optimized here"
+                className="w-full bg-white text-black rounded-lg px-6 py-3 text-base placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-white/20"
+              />
+              <button
+                onClick={handleOptimize}
+                disabled={!promptInput.trim()}
+                className="absolute right-2 top-1/2 -translate-y-1/2 bg-black text-white px-4 py-1 rounded text-sm hover:bg-gray-800 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <ArrowRight size={18} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DROPZ OVERLAY */}
+      {view === 'drops' && (
+        <div className="fixed inset-0 z-[100] overflow-y-auto bg-[#fcfaf5]">
+          <EditorialEngine />
+        </div>
+      )}
+
+      {/* LIBRARY OVERLAY */}
+      {view === 'library' && (
+        <div className="fixed inset-0 z-[100] overflow-y-auto bg-black">
+          <video
+            src="https://firebasestorage.googleapis.com/v0/b/prompt-playgroundz.firebasestorage.app/o/Arcade_Prompt_Playgroundz.mp4?alt=media&token=17814a71-e8d6-49dd-9be8-450e6b65f434"
+            autoPlay
+            muted
+            loop
+            playsInline
+            className="absolute inset-0 w-full h-full object-cover opacity-20"
+          />
+          <div className="relative z-10 p-12">
+            <h1 className="anton-lock text-6xl uppercase text-white mb-8">Archive_Library</h1>
+
+            {library.length === 0 ? (
+              <div className="text-center py-20 text-white/40">
+                <LibraryIcon size={64} strokeWidth={1} className="mx-auto mb-4 opacity-20" />
+                <p className="anton-lock text-2xl uppercase">Optimize a prompt to start your library</p>
               </div>
-            </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl">
+                {library.map((item) => (
+                  <LibraryCard key={item.id} item={item} onSelect={() => {}} />
+                ))}
+              </div>
+            )}
           </div>
-        )}
+        </div>
+      )}
 
-        {view === 'drops' && <EditorialEngine />}
-
-        {view === 'library' && (
-          <div className="relative min-h-screen bg-black">
-            <video
-              src="https://firebasestorage.googleapis.com/v0/b/prompt-playgroundz.firebasestorage.app/o/Arcade_Prompt_Playgroundz.mp4?alt=media&token=17814a71-e8d6-49dd-9be8-450e6b65f434"
-              autoPlay
-              muted
-              loop
-              playsInline
-              className="absolute inset-0 w-full h-full object-cover opacity-20"
-            />
-            <div className="relative z-10 p-12">
-              <h1 className="anton-lock text-6xl uppercase text-white mb-8">Archive_Library</h1>
-
-              {library.length === 0 ? (
-                <div className="text-center py-20 text-white/40">
-                  <LibraryIcon size={64} strokeWidth={1} className="mx-auto mb-4 opacity-20" />
-                  <p className="anton-lock text-2xl uppercase">Optimize a prompt to start your library</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl">
-                  {library.map((item) => (
-                    <LibraryCard key={item.id} item={item} onSelect={() => {}} />
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </main>
-
-      {/* BOTTOM NAVIGATION: PLAYGROUND · DROPS · LIBRARY */}
+      {/* BOTTOM NAVIGATION: PLAYGROUND · DROPZ · LIBRARY */}
       <nav className="fixed bottom-0 left-0 right-0 bg-black/95 backdrop-blur-3xl border-t border-white/5 px-6 py-6 z-[9999] flex justify-around items-center">
         <button
           onClick={() => setView('playground')}
@@ -501,7 +616,7 @@ export default function App() {
           className={`flex flex-col items-center gap-2 transition-all ${view === 'drops' ? 'text-white' : 'text-white/20'}`}
         >
           <ShoppingBag size={24} />
-          <span className="font-['Space_Mono'] text-[8px] tracking-[0.2em] uppercase font-bold">DROPS</span>
+          <span className="font-['Space_Mono'] text-[8px] tracking-[0.2em] uppercase font-bold">DROPZ</span>
         </button>
 
         <button
@@ -532,8 +647,6 @@ export default function App() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Anton&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Space+Mono:wght@400;700&display=swap');
         .anton-lock { font-family: 'Anton', sans-serif; font-weight: 400; }
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(217, 74, 30, 0.4); border-radius: 10px; }
       `}</style>
     </div>
   );
