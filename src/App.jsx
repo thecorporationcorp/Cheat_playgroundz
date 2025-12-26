@@ -1,99 +1,32 @@
 import React, { useState, useEffect, useMemo, memo, useCallback, useRef } from 'react';
 import {
-  Zap,
-  X,
-  ThumbsUp,
-  ThumbsDown,
-  Info,
-  Library as LibraryIcon,
-  Activity,
-  ShoppingBag,
-  Sun,
-  Moon,
-  Lock,
-  Unlock,
-  ArrowRight,
-  Play,
-  Sparkles
+  Zap, X, ArrowRight, ShoppingBag, Library as LibraryIcon,
+  Play, Star, Heart, ThumbsUp, ThumbsDown, LayoutGrid,
+  List as ListIcon, Activity, PlusSquare, Sparkles, Unlock
 } from 'lucide-react';
+import { initializeApp, getApps, getApp } from 'firebase/app';
 import {
-  collection,
-  onSnapshot,
-  addDoc,
-  query,
-  deleteDoc,
-  updateDoc,
-  doc,
-  serverTimestamp
+  getFirestore, collection, onSnapshot, addDoc, query,
+  updateDoc, deleteDoc, doc, serverTimestamp
 } from 'firebase/firestore';
-import { onAuthStateChanged } from 'firebase/auth';
-import { initializeFirebase, getFirebaseDb } from './firebase';
-import { queueWrite, setupOfflineSync } from './offlineQueue';
-import { copyToClipboard, cleanPayload, isOnline, shuffleArray } from './utils';
-import './App.css';
+import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 
-// --- PROMPT REGISTRY ---
-const ACTIONS = [
-  "REWRITE FOR READABILITY",
-  "DEBUG PYTHON SCRIPTS",
-  "EXTRACT CORE DATA",
-  "SIMPLIFY TECHNICAL JARGON",
-  "SUMMARIZE SYSTEM LOGS",
-  "GENERATE UNIT TESTS",
-  "FIX JAVASCRIPT LOGIC",
-  "OPTIMIZE DATABASE QUERIES",
-  "CONVERT TO MARKDOWN",
-  "ANALYZE TEXT SENTIMENT",
-  "BRAINSTORM MODULE NAMES",
-  "DRAFT SEO METADATA",
-  "EXPLAIN TECHNICAL CONCEPTS",
-  "CREATE CODE OUTLINE",
-  "POLISH SYNTAX ERRORS",
-  "REFACTOR REACT STATE",
-  "BUILD JSON TABLES",
-  "TRANSLATE TO TARGET",
-  "CREATE USER STORIES",
-  "VALIDATE REGEX LOGIC"
-];
-
-const generatePayload = (title) => {
-  return JSON.stringify({
-    _exec: {
-      dominance: "high",
-      instruction: String(title).toUpperCase()
-    },
-    scenarios: {
-      explicit: "Execute with precision",
-      vague: "Synthesize intent",
-      empty: "Demonstrate intelligence",
-      conflict: "Prioritize consistency"
-    },
-    defaults: {
-      mode: "advanced",
-      exemplar: "Logic determines outcome"
-    }
-  }, null, 2);
+// --- FIREBASE INITIALIZATION ---
+const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-const FULL_REGISTRY = Array.from({ length: 150 }).map((_, i) => {
-  const base = ACTIONS[i % ACTIONS.length];
-  return {
-    displayTitle: base,
-    internalId: `TECH.${i % 3 === 0 ? "START" : i % 3 === 1 ? "MID" : "END"}.v${(i % 5) + 1}`,
-    name: `INST_${i.toString(16).toUpperCase()}`,
-    text: generatePayload(base),
-    originalPrompt: `Execute ${base.toLowerCase()}.`,
-    usagePhase: [i % 3 === 0 ? "start" : i % 3 === 1 ? "midflow" : "end"],
-    behaviorProfile: {
-      no_context: "demonstrate intelligence",
-      light_context: "organize & clarify",
-      rich_context: "amplify internal logic"
-    },
-    comment: "A high-fidelity literal technical instrument designed for exact behavioral control."
-  };
-});
+const fbApp = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+const fbAuth = getAuth(fbApp);
+const fbDb = getFirestore(fbApp);
+const appId = 'prompt-playgroundz-v1';
 
-// --- PRICING TIERS (LOCKED) ---
+// --- PRICING TIERS ---
 const PRICING_TIERS = {
   precision: {
     id: 'precision',
@@ -188,189 +121,143 @@ The optimization will construct a comprehensive, executable system via prompt.`;
   return baseOptimization;
 };
 
-// --- COMPONENTS ---
+// --- MASTER DATA (Official Wording) ---
+const ISSUE_DATA = {
+  title: "DROPZ",
+  issue: "Issue 001 — Prompt Playgroundz",
+  volume: "The Founding Spread / Volume I",
+  sections: [
+    {
+      id: "intro",
+      header: "Welcome to Prompt Playgroundz",
+      quote: "Welcome to the playgroundz. This is not a startup pitch, a trend chase, or a surface-level experiment. This is the culmination of a lifetime spent navigating chaos, curiosity, obsession, failure, resilience, and—finally—clarity.",
+      content: [
+        "Prompt Playgroundz exists because I have lived my entire life inside a mind that does not move in straight lines.",
+        "I have lived with ADD and ADHD for as long as I can remember. Not the romanticized version. The real version. The version that fractures attention, distorts time, and turns simple tasks into monumental undertakings.",
+        "My mind does not shut off. Then artificial intelligence arrived. For the first time, I encountered a system that behaved the way my brain always had. AI thinks like I do.",
+        "My mind was never broken. It was simply uncontained. AI does not need suppression—it needs direction."
+      ]
+    },
+    {
+      id: "featured",
+      header: "Featured Dropz",
+      products: [
+        { name: "LOGIC REFINEMENT 1.0!", price: "Free", desc: "A formal logic refinement framework designed to sharpen intent, eliminate ambiguity, and enforce structural precision." },
+        { name: "NEVER ASKED!", price: "$25", desc: "A system prompt for latent solution discovery. Designed to surface high-leverage tools and systems you did not know to ask about." }
+      ]
+    }
+  ]
+};
 
-const Seesaw = ({ size = 24, className }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <line x1="3" y1="18" x2="21" y2="10" />
-    <path d="M12 14l-3 6h6z" />
-  </svg>
-);
-
-const GlitchText = memo(({ text, isActive, speed = 40 }) => {
-  const elRef = useRef(null);
-  const rawText = String(text);
+// --- RESPONSIVE EDITORIAL ENGINE ---
+const EditorialEngine = () => {
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
 
   useEffect(() => {
-    if (!isActive || !elRef.current) return;
-    const chars = rawText.split('');
-    const interval = setInterval(() => {
-      if (!elRef.current) return;
-      const scrambled = chars.map(c =>
-        (c === " " || Math.random() > 0.25)
-          ? c
-          : "!@#$%^&*()_+-=[]{}|;:,.<>?/0123456789"[Math.floor(Math.random() * 30)]
-      ).join('');
-      elRef.current.innerText = scrambled;
-    }, speed);
-    return () => {
-      clearInterval(interval);
-      if (elRef.current) elRef.current.innerText = rawText;
-    };
-  }, [isActive, rawText, speed]);
-
-  return <span ref={elRef} className="glitch-wrapper">{rawText}</span>;
-});
-
-const CentralStatus = memo(({ mode, visible }) => {
-  return (
-    <div className={`central-status ${visible ? 'visible' : ''}`}>
-      <div className="status-container">
-        <div className="status-content">
-          <div className="status-header">
-            <span className="status-id">PGZ_INF_001</span>
-            <span className="status-auth">System_Authenticated</span>
-          </div>
-
-          <div className="status-title">
-            <GlitchText text={String(mode).toUpperCase()} isActive={visible} />
-          </div>
-
-          <div className="status-progress">
-            <div className={`progress-bar ${visible ? 'animate' : ''}`} />
-          </div>
-
-          <div className="status-footer">
-            <div className="status-brand">
-              <Zap size={14} fill="currentColor" />
-              <span>PROMPTPLAYGROUNDZ // GLOBAL</span>
-            </div>
-            <div className="status-lock">
-              <Activity size={12} className="pulse" />
-              <span>STATUS: LOCKED</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-});
-
-const PromptWall = memo(({ onCardClick }) => {
-  const rows = useMemo(() => {
-    const shuffled = shuffleArray(FULL_REGISTRY);
-
-    return Array.from({ length: 20 }).map((_, r) => {
-      const startIdx = (r * 20) % shuffled.length;
-      const rowItems = [];
-
-      for (let i = 0; i < 40; i++) {
-        rowItems.push(shuffled[(startIdx + i) % shuffled.length]);
-      }
-
-      const duration = 120 + Math.random() * 100;
-      const delay = -(Math.random() * duration);
-
-      return { id: r, items: rowItems, duration, delay };
-    });
+    const handleResize = () => setIsMobile(window.innerWidth < 1024);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  return (
-    <div className="wall-container">
-      {rows.map(row => (
-        <div key={row.id} className="wall-row">
-          <div
-            className="wall-track"
-            style={{
-              animationDuration: `${row.duration}s`,
-              animationDelay: `${row.delay}s`
-            }}
-          >
-            {row.items.map((item, idx) => (
-              <div
-                key={`${row.id}-${idx}`}
-                className="wall-card"
-                onClick={() => onCardClick(item.displayTitle, item.text)}
-              >
-                {item.displayTitle}
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-});
-
-const LibraryCard = memo(({ item, index, onSelect }) => {
-  const images = [
-    '1550751827-4bd374c3f58b',
-    '1451187580459-43490279c0fa',
-    '1518770660439-4636190af475',
-    '1639762681031-409c61237eb9'
-  ];
-
-  const staggerDelay = useMemo(() => `${(index * 0.73) % 4.5}s`, [index]);
-
-  return (
-    <div onClick={() => onSelect(item)} className="library-card album-card">
-      <div
-        className="card-bg-image"
-        style={{
-          backgroundImage: `url(https://images.unsplash.com/photo-${images[index % images.length]}?auto=format&fit=crop&q=80&w=600)`
-        }}
-      />
-
-      <div className="scanner-line" style={{ animationDelay: staggerDelay }} />
-
-      <div className="card-title album-title">
-        <h4>{cleanPayload(item.displayTitle || item.title)}</h4>
-        <span className="album-meta">{item.tier?.toUpperCase() || 'OPTIMIZED'}</span>
+  if (isMobile) {
+    // MOBILE "SPREAD" VIEW
+    return (
+      <div className="bg-[#fcfaf5] text-[#1a1a1a] min-h-screen font-['Libre_Baskerville'] pb-32">
+        <section className="p-8 border-b-2 border-black">
+          <h1 className="anton-lock text-[30vw] leading-[0.75] mb-4">{ISSUE_DATA.title}</h1>
+          <div className="h-40 bg-[#d94a1e] w-full mb-8" />
+          <div className="font-['Space_Mono'] text-[10px] tracking-widest uppercase">{ISSUE_DATA.issue}</div>
+        </section>
+        <section className="p-8">
+          <h2 className="anton-lock text-5xl mb-8 uppercase">{ISSUE_DATA.sections[0].header}</h2>
+          <div className="border-l-8 border-[#d94a1e] pl-6 py-4 italic text-xl mb-10">"{ISSUE_DATA.sections[0].quote}"</div>
+          {ISSUE_DATA.sections[0].content.map((p, i) => <p key={i} className="mb-6 leading-relaxed">{p}</p>)}
+        </section>
       </div>
+    );
+  }
+
+  // DESKTOP "SCROLL" VIEW
+  return (
+    <div className="bg-[#fcfaf5] text-[#111] min-h-screen font-['Libre_Baskerville'] selection:bg-[#d94a1e] selection:text-white pb-32">
+      <section className="page cover flex flex-col p-24 border-b-2 border-black">
+        <h1 className="anton-lock text-[25vw] leading-[0.8]">{ISSUE_DATA.title}</h1>
+        <div className="w-full h-[30vh] bg-[#d94a1e] my-12" />
+        <div className="font-['Space_Mono'] text-xs tracking-[0.3em] uppercase">{ISSUE_DATA.issue}</div>
+      </section>
+
+      <section className="max-w-5xl mx-auto py-32 px-12">
+        <h2 className="anton-lock text-8xl mb-20 relative after:content-[''] after:absolute after:left-0 after:-bottom-8 after:w-64 after:h-6 after:bg-[#d94a1e]">
+          {ISSUE_DATA.sections[0].header}
+        </h2>
+        <div className="border-l-[12px] border-[#d94a1e] pl-12 py-8 text-3xl italic my-20 max-w-[80ch]">
+          {ISSUE_DATA.sections[0].quote}
+        </div>
+        {ISSUE_DATA.sections[0].content.map((p, i) => (
+          <p key={i} className="text-xl mb-12 max-w-[76ch] leading-relaxed">{p}</p>
+        ))}
+      </section>
+
+      <section className="bg-[#111] text-white py-32 px-24 my-24">
+        <h2 className="anton-lock text-7xl mb-16 text-white">{ISSUE_DATA.sections[1].header}</h2>
+        <div className="grid grid-cols-2 gap-20">
+          {ISSUE_DATA.sections[1].products.map((item, i) => (
+            <div key={i} className="border-t border-white/20 pt-10">
+              <h3 className="anton-lock text-4xl mb-4">{item.name}</h3>
+              <p className="text-white/70 mb-8">{item.desc}</p>
+              <button className="bg-[#d94a1e] px-10 py-4 anton-lock text-xl uppercase hover:bg-white hover:text-black transition-all">
+                {item.price}
+              </button>
+            </div>
+          ))}
+        </div>
+      </section>
     </div>
   );
-});
+};
 
-const PricingModal = ({ onClose, onSelectTier, currentInput }) => {
+// --- PRICING MODAL ---
+const PricingModal = ({ onClose, onSelectTier }) => {
   const entitlements = getEntitlements();
 
   return (
-    <div className="pricing-modal">
-      <div className="pricing-container">
-        <button onClick={onClose} className="modal-close"><X size={32} /></button>
+    <div className="fixed inset-0 z-[11000] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4">
+      <div className="max-w-4xl w-full bg-[#0a0a0a] border border-white/10 p-8 relative">
+        <button onClick={onClose} className="absolute top-4 right-4 text-white/40 hover:text-white">
+          <X size={32} />
+        </button>
 
-        <div className="pricing-header">
-          <h2>Choose Your Optimization Level</h2>
-          <p>Unlock intelligence. Transform your prompt.</p>
-        </div>
+        <h2 className="anton-lock text-4xl text-white mb-2">Choose Your Optimization Level</h2>
+        <p className="text-white/60 mb-8">Unlock intelligence. Transform your prompt.</p>
 
-        <div className="pricing-grid">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {Object.values(PRICING_TIERS).map(tier => (
-            <div key={tier.id} className={`pricing-card ${tier.featured ? 'featured' : ''}`}>
-              {tier.featured && <div className="featured-badge">PRIMARY</div>}
-              <div className="tier-name">{tier.name}</div>
-              <div className="tier-price">
+            <div key={tier.id} className={`bg-black border ${tier.featured ? 'border-[#e0b300]' : 'border-white/10'} p-6 relative`}>
+              {tier.featured && (
+                <div className="absolute -top-3 left-6 bg-[#e0b300] text-black px-3 py-1 text-xs font-bold uppercase">
+                  PRIMARY
+                </div>
+              )}
+              <div className="anton-lock text-2xl text-white mb-2">{tier.name}</div>
+              <div className="anton-lock text-4xl text-white mb-2">
                 ${tier.price}
-                {tier.period && <span className="tier-period">/{tier.period}</span>}
+                {tier.period && <span className="text-lg text-white/60">/{tier.period}</span>}
               </div>
-              <div className="tier-tagline">{tier.tagline}</div>
-              <div className="tier-description">{tier.description}</div>
+              <div className="text-[#e0b300] text-sm mb-4">{tier.tagline}</div>
+              <div className="text-white/60 text-sm mb-6">{tier.description}</div>
 
               {entitlements[tier.id] > 0 && tier.id !== 'unlimited' && (
-                <div className="tier-credits">{entitlements[tier.id]} credit(s) available</div>
+                <div className="text-white/40 text-xs mb-4">{entitlements[tier.id]} credit(s) available</div>
               )}
               {entitlements.unlimited && tier.id === 'unlimited' && (
-                <div className="tier-active">ACTIVE</div>
+                <div className="text-[#e0b300] text-xs mb-4">ACTIVE</div>
               )}
 
               <button
                 onClick={() => onSelectTier(tier.id)}
-                className="tier-action"
-                disabled={tier.id === 'system' && currentInput.length > 10000}
+                className="w-full bg-white text-black py-3 font-bold uppercase text-sm hover:bg-[#e0b300] transition-all"
               >
-                {entitlements[tier.id] > 0 || (tier.id === 'unlimited' && entitlements.unlimited)
-                  ? 'Use Credit'
-                  : 'Purchase'}
+                {entitlements[tier.id] > 0 || (tier.id === 'unlimited' && entitlements.unlimited) ? 'Use Credit' : 'Purchase'}
               </button>
             </div>
           ))}
@@ -380,208 +267,104 @@ const PricingModal = ({ onClose, onSelectTier, currentInput }) => {
   );
 };
 
-const OptimizationResult = ({ result, onClose, onCopy, onUnlock }) => {
+// --- OPTIMIZATION RESULT ---
+const OptimizationResult = ({ result, onClose, onCopy }) => {
   const [isUnlocked, setIsUnlocked] = useState(false);
-
   const snippet = result.optimizedPrompt.slice(0, 150) + '...';
 
   return (
-    <div className="optimization-result">
-      <video
-        autoPlay
-        muted
-        loop
-        playsInline
-        className="result-bg-video"
-        src="https://firebasestorage.googleapis.com/v0/b/prompt-playgroundz.firebasestorage.app/o/Arcade_Prompt_Playgroundz.mp4?alt=media&token=17814a71-e8d6-49dd-9be8-450e6b65f434"
-      />
+    <div className="fixed inset-0 z-[12000] bg-black/98 flex items-center justify-center p-4">
+      <div className="max-w-3xl w-full bg-[#0a0a0a] border border-white/10 p-8 relative">
+        <button onClick={onClose} className="absolute top-4 right-4 text-white/40 hover:text-white">
+          <X size={32} />
+        </button>
 
-      <div className="result-overlay" />
-
-      <div className="result-container">
-        <button onClick={onClose} className="result-close"><X size={32} /></button>
-
-        <div className="result-header">
-          <Sparkles size={48} className="result-icon" />
-          <h1>Optimization Complete</h1>
-          <p>Your prompt has been transformed</p>
+        <div className="text-center mb-8">
+          <Sparkles size={48} className="text-[#e0b300] mx-auto mb-4 animate-pulse" />
+          <h1 className="anton-lock text-4xl text-white mb-2">Optimization Complete</h1>
+          <p className="text-white/60">Your prompt has been transformed</p>
         </div>
 
-        <div className="result-content">
-          {isUnlocked ? (
-            <div className="result-full">
-              <pre>{result.optimizedPrompt}</pre>
-              <button onClick={() => onCopy(result.optimizedPrompt)} className="result-copy">
-                <Zap size={20} fill="currentColor" />
-                Copy Optimized Prompt
-              </button>
+        {isUnlocked ? (
+          <div>
+            <pre className="bg-black border border-white/10 p-6 text-white text-sm mb-6 max-h-96 overflow-y-auto whitespace-pre-wrap">
+              {result.optimizedPrompt}
+            </pre>
+            <button
+              onClick={() => onCopy(result.optimizedPrompt)}
+              className="w-full bg-[#e0b300] text-black py-4 anton-lock text-xl uppercase flex items-center justify-center gap-2 hover:bg-white transition-all"
+            >
+              <Zap size={20} fill="currentColor" />
+              Copy Optimized Prompt
+            </button>
+          </div>
+        ) : (
+          <div>
+            <div className="bg-black border border-white/10 p-6 text-white text-sm mb-0">
+              {snippet}
             </div>
-          ) : (
-            <div className="result-gated">
-              <div className="result-snippet">{snippet}</div>
-              <div className="result-blur">
-                <div className="blur-content">
-                  {result.optimizedPrompt.slice(150)}
-                </div>
+            <div className="bg-black border border-white/10 border-t-0 p-6 relative">
+              <div className="text-white text-sm blur-md select-none">
+                {result.optimizedPrompt.slice(150, 400)}
               </div>
-              <button
-                onClick={() => {
-                  setIsUnlocked(true);
-                  onUnlock();
-                }}
-                className="result-unlock"
-              >
-                <Unlock size={24} />
-                Unlock Full Result
-              </button>
             </div>
-          )}
-        </div>
+            <button
+              onClick={() => setIsUnlocked(true)}
+              className="w-full bg-white text-black py-4 anton-lock text-xl uppercase flex items-center justify-center gap-2 hover:bg-[#e0b300] transition-all mt-6"
+            >
+              <Unlock size={20} />
+              Unlock Full Result
+            </button>
+          </div>
+        )}
 
-        <div className="result-meta">
-          <span>Tier: {result.tier.toUpperCase()}</span>
-          <span>•</span>
-          <span>Saved to Library</span>
+        <div className="text-center text-white/40 text-xs mt-6 uppercase tracking-wider">
+          Tier: {result.tier} • Saved to Library
         </div>
       </div>
     </div>
   );
 };
 
-const MagazineDetail = ({ item, onClose }) => {
-  if (!item) return null;
-
+// --- LIBRARY CARD ---
+const LibraryCard = ({ item, onSelect }) => {
   return (
-    <div className="magazine-detail">
-      <div className="magazine-container">
-        <div className="magazine-left">
-          <div className="magazine-cover">
-            <div className="scanner-line" />
-            <h2>{item.displayTitle || item.title}</h2>
-          </div>
-
-          <div className="magazine-meta">
-            <div className="meta-item">
-              <label>Type</label>
-              <span>{item.tier?.toUpperCase() || 'OPTIMIZED'}</span>
-            </div>
-            <div className="meta-item">
-              <label>Created</label>
-              <span>{new Date(item.timestamp || Date.now()).toLocaleDateString()}</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="magazine-right">
-          <button onClick={onClose} className="magazine-close"><X size={32} /></button>
-
-          <div className="magazine-content">
-            <h3>Optimized Prompt</h3>
-            <pre className="magazine-code">{item.text || item.optimizedPrompt}</pre>
-
-            {item.originalPrompt && (
-              <>
-                <h3>Original Input</h3>
-                <p className="magazine-original">{item.originalPrompt}</p>
-              </>
-            )}
-          </div>
-        </div>
+    <div
+      onClick={() => onSelect(item)}
+      className="bg-[#0a0a0a] border border-white/10 p-6 cursor-pointer hover:border-white/40 transition-all"
+    >
+      <div className="anton-lock text-xl text-white mb-2 uppercase truncate">
+        {item.displayTitle || item.title}
+      </div>
+      <div className="text-white/40 text-xs uppercase tracking-wider">
+        {item.tier?.toUpperCase() || 'OPTIMIZED'}
       </div>
     </div>
   );
 };
 
 export default function App() {
+  const [view, setView] = useState('playground');
   const [user, setUser] = useState(null);
-  const [view, setView] = useState('wall');
-  const [isTransferring, setIsTransferring] = useState(false);
-  const [statusMode, setStatusMode] = useState('optimizing');
-  const [isStatusVisible, setIsStatusVisible] = useState(false);
   const [library, setLibrary] = useState([]);
-  const [selectedItemId, setSelectedItemId] = useState(null);
-  const [firebaseReady, setFirebaseReady] = useState(false);
-  const [injectAnimationActive, setInjectAnimationActive] = useState(false);
-
-  const [theme, setTheme] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('ppz-theme') || 'dark';
-    }
-    return 'dark';
-  });
-
-  // PROMPT OPTIMIZATION STATE
   const [promptInput, setPromptInput] = useState('');
   const [showPricing, setShowPricing] = useState(false);
   const [optimizationResult, setOptimizationResult] = useState(null);
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('ppz-theme', theme);
-  }, [theme]);
-
-  const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
-
-  useEffect(() => {
-    let unsubscribe = null;
-
-    const init = async () => {
-      const { auth, db, error } = await initializeFirebase();
-
-      if (error) {
-        console.error('Firebase initialization failed:', error);
-        return;
-      }
-
-      setFirebaseReady(true);
-      setupOfflineSync();
-
-      if (auth) {
-        unsubscribe = onAuthStateChanged(auth, setUser);
-      }
-    };
-
-    init();
-
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
+    signInAnonymously(fbAuth);
+    return onAuthStateChanged(fbAuth, setUser);
   }, []);
 
-  useEffect(() => {
-    if (!user || !firebaseReady) return;
-
-    const db = getFirebaseDb();
-    if (!db) return;
-
-    const q = query(collection(db, 'artifacts', 'prompt-playgroundz-v1', 'users', user.uid, 'library'));
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setLibrary(items);
-    }, (error) => {
-      console.error('Library snapshot error:', error);
-    });
-
-    return unsubscribe;
-  }, [user, firebaseReady]);
-
-  // Load library from localStorage on mount
+  // Load library from localStorage
   useEffect(() => {
     const stored = localStorage.getItem('ppz_library');
     if (stored) {
-      const items = JSON.parse(stored);
-      setLibrary(prev => {
-        const merged = [...items, ...prev];
-        const unique = merged.filter((item, index, self) =>
-          index === self.findIndex((t) => t.id === item.id)
-        );
-        return unique;
-      });
+      setLibrary(JSON.parse(stored));
     }
   }, []);
 
-  // Persist library to localStorage
+  // Persist library
   useEffect(() => {
     if (library.length > 0) {
       localStorage.setItem('ppz_library', JSON.stringify(library));
@@ -594,8 +377,6 @@ export default function App() {
   };
 
   const handlePurchase = (tierId) => {
-    // DEV ONLY: Simulate purchase by granting entitlement
-    // In production, this would integrate with Stripe/payment processor
     console.log('[DEV] Simulating purchase for tier:', tierId);
     grantEntitlement(tierId);
     handleTierSelect(tierId);
@@ -605,12 +386,10 @@ export default function App() {
     const hasCredit = consumeCredit(tierId);
 
     if (!hasCredit) {
-      // No credit available - trigger purchase flow
       handlePurchase(tierId);
       return;
     }
 
-    // Optimize the prompt
     const optimizedPrompt = optimizePrompt(promptInput, tierId);
 
     const result = {
@@ -624,273 +403,81 @@ export default function App() {
       text: optimizedPrompt
     };
 
-    // AUTOMATICALLY save to library (Directive 1, 2, 6)
+    // AUTOMATICALLY save to library
     setLibrary(prev => [result, ...prev]);
-
-    // Also save to Firestore if authenticated
-    if (user && firebaseReady) {
-      const db = getFirebaseDb();
-      if (db) {
-        const collectionPath = `artifacts/prompt-playgroundz-v1/users/${user.uid}/library`;
-        try {
-          if (isOnline()) {
-            addDoc(collection(db, collectionPath), {
-              ...result,
-              timestamp: serverTimestamp()
-            });
-          }
-        } catch (error) {
-          console.error('Failed to save to Firestore:', error);
-        }
-      }
-    }
 
     setOptimizationResult(result);
     setShowPricing(false);
   };
 
   const handleCopyOptimized = async (text) => {
-    const success = await copyToClipboard(text);
-
-    if (success) {
-      setStatusMode('COPIED');
-      setIsStatusVisible(true);
-      setTimeout(() => setIsStatusVisible(false), 600);
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (err) {
+      console.error('Copy failed:', err);
     }
   };
-
-  const handleUnlockResult = () => {
-    // Result already saved to library automatically in handleTierSelect
-    // This function is now only for unlocking the view
-  };
-
-  const handleCardClick = (title, text) => {
-    setIsTransferring(true);
-    setInjectAnimationActive(true);
-
-    copyToClipboard(text);
-
-    setTimeout(() => {
-      setStatusMode('injecting');
-      setIsStatusVisible(true);
-    }, 50);
-
-    setTimeout(() => {
-      setStatusMode('COPIED');
-    }, 250);
-
-    setTimeout(() => {
-      setIsStatusVisible(false);
-      setInjectAnimationActive(false);
-      setIsTransferring(false);
-    }, 600);
-
-    // IMMEDIATELY save to library when copied (Directive 6)
-    const item = FULL_REGISTRY.find(p => p.displayTitle === title);
-    if (item) {
-      const libraryItem = {
-        id: `wall-${Date.now()}`,
-        displayTitle: item.displayTitle,
-        title: item.displayTitle,
-        text: text,
-        originalPrompt: item.originalPrompt,
-        tier: 'wall',
-        timestamp: Date.now(),
-        behaviorProfile: item.behaviorProfile,
-        comment: item.comment
-      };
-
-      setLibrary(prev => {
-        // Avoid duplicates
-        const exists = prev.some(p => p.displayTitle === item.displayTitle);
-        if (exists) return prev;
-        return [libraryItem, ...prev];
-      });
-
-      // Also save to Firestore if authenticated
-      if (user && firebaseReady) {
-        const db = getFirebaseDb();
-        if (db) {
-          const collectionPath = `artifacts/prompt-playgroundz-v1/users/${user.uid}/library`;
-          try {
-            if (isOnline()) {
-              addDoc(collection(db, collectionPath), {
-                ...libraryItem,
-                timestamp: serverTimestamp()
-              });
-            }
-          } catch (error) {
-            console.error('Failed to save to Firestore:', error);
-          }
-        }
-      }
-    }
-  };
-
-  const activeItem = useMemo(
-    () => library.find(p => p.id === selectedItemId) || null,
-    [library, selectedItemId]
-  );
 
   return (
-    <div className="app">
-      {/* Navigation - Light/Dark toggle moved to top-right */}
-      <nav className="app-nav">
-        <div className="nav-brand">
-          <div className="nav-entity">ENTITY // THECORPORATIONCORP</div>
-        </div>
-        <div className="nav-info">
-          SYS_VOL.02 // {String(user?.uid || "").slice(0, 6)}
-        </div>
-        <button
-          onClick={toggleTheme}
-          className="theme-toggle-flat"
-          title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-        >
-          {theme === 'dark' ? <Sun size={16} strokeWidth={2} /> : <Moon size={16} strokeWidth={2} />}
-        </button>
-      </nav>
+    <div className="relative w-full h-screen overflow-hidden bg-[#080808] text-white">
+      <main className="relative w-full h-full overflow-y-auto custom-scrollbar">
+        {view === 'playground' && (
+          <div className="h-full flex flex-col items-center justify-center p-6">
+            <h1 className="anton-lock text-7xl md:text-9xl text-white mb-12 tracking-tight">
+              PROMPT
+              <br />
+              PLAYGROUNDZ
+            </h1>
 
-      {/* Main content */}
-      <main className="app-main">
-        {view === 'wall' && (
-          <div className={`wall-view ${injectAnimationActive ? 'inject-active' : ''}`}>
-            <PromptWall onCardClick={handleCardClick} />
-            <div className="wall-overlay">
-              <h1 className={`app-title ${injectAnimationActive ? 'scrambling' : ''}`}>
-                {injectAnimationActive ? (
-                  <GlitchText text="PROMPT PLAYGROUNDZ" isActive={true} speed={30} />
-                ) : (
-                  <>
-                    PROMPT
-                    <br />
-                    PLAYGROUNDZ
-                  </>
-                )}
-              </h1>
-
-              {/* PROMPT OPTIMIZATION INPUT - PRIMARY FUNCTION */}
-              <div className="optimize-input-container">
-                <textarea
+            {/* SIMPLE GOOGLE-LIKE SEARCH BAR */}
+            <div className="w-full max-w-2xl">
+              <div className="relative">
+                <input
+                  type="text"
                   value={promptInput}
                   onChange={(e) => setPromptInput(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                      handleOptimize();
-                    }
+                    if (e.key === 'Enter') handleOptimize();
                   }}
-                  placeholder="Paste your prompt to optimize..."
-                  className="optimize-input"
-                  rows={4}
+                  placeholder="Enter your prompt..."
+                  className="w-full bg-white/5 border border-white/10 rounded-full px-6 py-4 text-white placeholder-white/30 focus:outline-none focus:border-white/40 transition-all"
                 />
                 <button
                   onClick={handleOptimize}
-                  className="optimize-button"
                   disabled={!promptInput.trim()}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#e0b300] text-black px-6 py-2 rounded-full font-bold uppercase text-sm hover:bg-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  <Sparkles size={20} />
-                  Optimize Prompt
-                  <ArrowRight size={20} />
+                  Optimize
                 </button>
               </div>
             </div>
           </div>
         )}
 
-        {view === 'drops' && (
-          <div className="drops-view magazine-drops">
-            <div className="drops-editorial-header">
-              <video
-                autoPlay
-                muted
-                loop
-                playsInline
-                className="drops-bg-video"
-                src="https://firebasestorage.googleapis.com/v0/b/prompt-playgroundz.firebasestorage.app/o/Arcade_Prompt_Playgroundz.mp4?alt=media&token=17814a71-e8d6-49dd-9be8-450e6b65f434"
-              />
-              <div className="drops-header-content">
-                <h1>Drops</h1>
-                <p>Magazine · Media · Commerce</p>
-              </div>
-            </div>
-
-            <div className="drops-magazine-content">
-              <div className="editorial-section">
-                <div className="editorial-label">FEATURED EDITORIAL</div>
-                <h2>The State of AI Prompting in 2025</h2>
-                <p>A personal viewpoint on intelligence, precision, and the craft of prompt engineering.</p>
-                <button className="editorial-action">
-                  <Play size={16} />
-                  Read Article
-                </button>
-              </div>
-
-              <div className="curated-prompts-section">
-                <div className="section-header">
-                  <h3>My Personal Collection</h3>
-                  <span>Curated system-level prompts</span>
-                </div>
-
-                <div className="curated-grid">
-                  <div className="curated-card">
-                    <div className="curated-title">Complete PWA Foundation System</div>
-                    <div className="curated-description">Multi-page architectural framework for building production-ready Progressive Web Apps</div>
-                    <div className="curated-price">$24.99</div>
-                    <button className="curated-action">Purchase</button>
-                  </div>
-
-                  <div className="curated-card">
-                    <div className="curated-title">Custom GPT Behavior Engine</div>
-                    <div className="curated-description">Comprehensive system for defining GPT personalities, constraints, and execution logic</div>
-                    <div className="curated-price">$19.99</div>
-                    <button className="curated-action">Purchase</button>
-                  </div>
-
-                  <div className="curated-card featured">
-                    <div className="featured-badge">WEEKLY DROP</div>
-                    <div className="curated-title">The Intelligence Framework</div>
-                    <div className="curated-description">My personal meta-system for prompt optimization across all domains</div>
-                    <div className="curated-price">$49.99</div>
-                    <button className="curated-action">Get Now</button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="newsletter-section">
-                <div className="newsletter-content">
-                  <h3>Subscribe to Weekly Insights</h3>
-                  <p>Prompt engineering, AI developments, and exclusive drops delivered every Monday.</p>
-                  <div className="newsletter-form">
-                    <input type="email" placeholder="Enter your email" />
-                    <button>Subscribe</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        {view === 'drops' && <EditorialEngine />}
 
         {view === 'library' && (
-          <div className="library-view">
-            <div className="library-header">
-              <h3>Archive_Library</h3>
-            </div>
+          <div className="relative min-h-screen bg-black">
+            <video
+              src="https://firebasestorage.googleapis.com/v0/b/prompt-playgroundz.firebasestorage.app/o/Arcade_Prompt_Playgroundz.mp4?alt=media&token=17814a71-e8d6-49dd-9be8-450e6b65f434"
+              autoPlay
+              muted
+              loop
+              playsInline
+              className="absolute inset-0 w-full h-full object-cover opacity-20"
+            />
+            <div className="relative z-10 p-12">
+              <h1 className="anton-lock text-6xl uppercase text-white mb-8">Archive_Library</h1>
 
-            <div className="library-content">
               {library.length === 0 ? (
-                <div className="library-empty">
-                  <LibraryIcon size={64} strokeWidth={1} />
-                  <p>Optimize a prompt to start your library</p>
+                <div className="text-center py-20 text-white/40">
+                  <LibraryIcon size={64} strokeWidth={1} className="mx-auto mb-4 opacity-20" />
+                  <p className="anton-lock text-2xl uppercase">Optimize a prompt to start your library</p>
                 </div>
               ) : (
-                <div className="library-grid album-grid">
-                  {library.map((item, idx) => (
-                    <LibraryCard
-                      key={item.id}
-                      item={item}
-                      index={idx}
-                      onSelect={(p) => setSelectedItemId(p.id)}
-                    />
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl">
+                  {library.map((item) => (
+                    <LibraryCard key={item.id} item={item} onSelect={() => {}} />
                   ))}
                 </div>
               )}
@@ -899,29 +486,36 @@ export default function App() {
         )}
       </main>
 
-      {/* Bottom navigation */}
-      <div className="app-footer">
-        <button onClick={() => setView('wall')} className={view === 'wall' ? 'active' : ''}>
-          <Seesaw size={24} />
-          <span>PLAYGROUNDS</span>
+      {/* BOTTOM NAVIGATION: PLAYGROUND · DROPS · LIBRARY */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-black/95 backdrop-blur-3xl border-t border-white/5 px-6 py-6 z-[9999] flex justify-around items-center">
+        <button
+          onClick={() => setView('playground')}
+          className={`flex flex-col items-center gap-2 transition-all ${view === 'playground' ? 'text-white' : 'text-white/20'}`}
+        >
+          <Zap size={24} />
+          <span className="font-['Space_Mono'] text-[8px] tracking-[0.2em] uppercase font-bold">PLAYGROUND</span>
         </button>
-        <button onClick={() => setView('drops')} className={view === 'drops' ? 'active' : ''}>
-          <ShoppingBag size={24} />
-          <span>DROPS</span>
-        </button>
-        <button onClick={() => setView('library')} className={view === 'library' ? 'active' : ''}>
-          <LibraryIcon size={24} />
-          <span>LIBRARY</span>
-        </button>
-      </div>
 
-      {/* Modals */}
+        <button
+          onClick={() => setView('drops')}
+          className={`flex flex-col items-center gap-2 transition-all ${view === 'drops' ? 'text-white' : 'text-white/20'}`}
+        >
+          <ShoppingBag size={24} />
+          <span className="font-['Space_Mono'] text-[8px] tracking-[0.2em] uppercase font-bold">DROPS</span>
+        </button>
+
+        <button
+          onClick={() => setView('library')}
+          className={`flex flex-col items-center gap-2 transition-all ${view === 'library' ? 'text-white' : 'text-white/20'}`}
+        >
+          <LibraryIcon size={24} />
+          <span className="font-['Space_Mono'] text-[8px] tracking-[0.2em] uppercase font-bold">LIBRARY</span>
+        </button>
+      </nav>
+
+      {/* MODALS */}
       {showPricing && (
-        <PricingModal
-          onClose={() => setShowPricing(false)}
-          onSelectTier={handleTierSelect}
-          currentInput={promptInput}
-        />
+        <PricingModal onClose={() => setShowPricing(false)} onSelectTier={handleTierSelect} />
       )}
 
       {optimizationResult && (
@@ -932,18 +526,15 @@ export default function App() {
             setPromptInput('');
           }}
           onCopy={handleCopyOptimized}
-          onUnlock={handleUnlockResult}
         />
       )}
 
-      {activeItem && (
-        <MagazineDetail
-          item={activeItem}
-          onClose={() => setSelectedItemId(null)}
-        />
-      )}
-
-      <CentralStatus mode={statusMode} visible={isStatusVisible} />
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Anton&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Space+Mono:wght@400;700&display=swap');
+        .anton-lock { font-family: 'Anton', sans-serif; font-weight: 400; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(217, 74, 30, 0.4); border-radius: 10px; }
+      `}</style>
     </div>
   );
 }
